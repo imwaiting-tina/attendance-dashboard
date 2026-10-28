@@ -462,6 +462,7 @@ export function Dashboard({
                 onDepartmentChange={setDepartment}
                 search={search}
                 onSearchChange={handleSearchChange}
+                onSelectEmployee={selectEmployee}
                 employeeOptions={employeeOptions}
                 personalMode={Boolean(selectedEmployee)}
                 summary={scopeSummary}

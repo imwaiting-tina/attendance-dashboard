@@ -1,3 +1,4 @@
+import { matchesEmployeeKeyword } from './pinyinSearch'
 import type { AttendanceRecord, MonthlyTotals } from './types'
 
 export interface MonthlyPoint extends MonthlyTotals {
@@ -142,13 +143,13 @@ export function summarizeEmployees(records: AttendanceRecord[]): EmployeeSummary
   })
 }
 
-/** 只保留员工姓名/归一化键包含关键词的记录 */
+/** 只保留员工姓名/归一化键匹配关键词的记录，支持拼音和首字母 */
 export function filterByEmployeeSearch(records: AttendanceRecord[], keyword: string): AttendanceRecord[] {
-  const term = keyword.trim().toLowerCase()
-  if (!term) return records
+  if (!keyword.trim()) return records
   return records.filter(
     (record) =>
-      record.employee_name.toLowerCase().includes(term) || record.employee_key.toLowerCase().includes(term),
+      matchesEmployeeKeyword(record.employee_name, keyword) ||
+      matchesEmployeeKeyword(record.employee_key, keyword),
   )
 }
 

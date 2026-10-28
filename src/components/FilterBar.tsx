@@ -1,5 +1,7 @@
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { ChevronDown, Search, X } from 'lucide-react'
 import { formatMonthFull } from '../lib/format'
+import { employeePinyinLabel, scoreEmployeeKeyword } from '../lib/pinyinSearch'
 
 export interface EmployeeOption {
   key: string
@@ -18,6 +20,7 @@ interface FilterBarProps {
   onDepartmentChange: (value: string) => void
   search: string
   onSearchChange: (value: string) => void
+  onSelectEmployee: (employeeKey: string) => void
   employeeOptions: EmployeeOption[]
   personalMode: boolean
   summary: string
@@ -35,6 +38,7 @@ export function FilterBar({
   onDepartmentChange,
   search,
   onSearchChange,
+  onSelectEmployee,
   employeeOptions,
   personalMode,
   summary,
@@ -42,6 +46,67 @@ export function FilterBar({
   onReset,
 }: FilterBarProps) {
   const allMonthsSelected = selectedMonths === null
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+
+  const suggestions = useMemo(() => {
+    const term = search.trim()
+    return employeeOptions
+      .map((employee) => ({
+        employee,
+        score: term ? scoreEmployeeKeyword(employee.name, term) : 0,
+      }))
+      .filter((item) => item.score >= 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.employee.name.localeCompare(b.employee.name, 'zh-Hans-CN'),
+      )
+      .slice(0, 8)
+      .map((item) => item.employee)
+  }, [employeeOptions, search])
+
+  const chooseEmployee = (employee: EmployeeOption) => {
+    onSelectEmployee(employee.key)
+    setSuggestionsOpen(false)
+    setActiveIndex(-1)
+    searchInputRef.current?.blur()
+  }
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      if (!suggestions.length) return
+      if (!suggestionsOpen) {
+        setSuggestionsOpen(true)
+        setActiveIndex(0)
+        return
+      }
+      setActiveIndex((index) => Math.min(index + 1, suggestions.length - 1))
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!suggestions.length) return
+      setSuggestionsOpen(true)
+      setActiveIndex((index) => (index <= 0 ? suggestions.length - 1 : index - 1))
+      return
+    }
+    if (event.key === 'Enter') {
+      const target =
+        activeIndex >= 0 ? suggestions[activeIndex] : suggestions.length === 1 ? suggestions[0] : null
+      if (suggestionsOpen && target) {
+        event.preventDefault()
+        chooseEmployee(target)
+      }
+      return
+    }
+    if (event.key === 'Escape') {
+      setSuggestionsOpen(false)
+      setActiveIndex(-1)
+    }
+  }
 
   return (
     <section className="card filter-bar" aria-label="筛选条件">
@@ -67,41 +132,97 @@ export function FilterBar({
           </span>
         </label>
 
-        <label className="filter-field filter-field-search">
-          <span className="filter-label">
+        <div className="filter-field filter-field-search">
+          <label className="filter-label" htmlFor="employee-search-input">
             员工
-            <span className="field-hint">输入姓名筛选，选中查看个人趋势</span>
-          </span>
-          <span className="search-wrap">
+            <span className="field-hint">姓名、拼音或首字母，如 cy → 陈圆</span>
+          </label>
+          <div className="search-wrap">
             <Search size={15} className="search-icon" aria-hidden="true" />
             <input
+              ref={searchInputRef}
+              id="employee-search-input"
               type="text"
               value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              list="employee-name-options"
-              placeholder="搜索姓名"
+              onChange={(event) => {
+                onSearchChange(event.target.value)
+                setSuggestionsOpen(true)
+                // 默认高亮最匹配项，输入后直接回车即可选中
+                setActiveIndex(0)
+              }}
+              onFocus={() => setSuggestionsOpen(true)}
+              onBlur={() => {
+                setSuggestionsOpen(false)
+                setActiveIndex(-1)
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="搜索姓名或拼音"
               autoComplete="off"
-              aria-label="搜索员工姓名"
+              role="combobox"
+              aria-label="搜索员工姓名或拼音"
+              aria-autocomplete="list"
+              aria-expanded={suggestionsOpen}
+              aria-controls="employee-search-suggestions"
+              aria-activedescendant={
+                suggestionsOpen && activeIndex >= 0
+                  ? `employee-search-option-${activeIndex}`
+                  : undefined
+              }
             />
             {search ? (
               <button
                 type="button"
                 className="search-clear"
-                onClick={() => onSearchChange('')}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onSearchChange('')
+                  setSuggestionsOpen(false)
+                  setActiveIndex(-1)
+                  searchInputRef.current?.focus()
+                }}
                 aria-label="清除员工搜索"
               >
                 <X size={14} />
               </button>
             ) : null}
-            <datalist id="employee-name-options">
-              {employeeOptions.map((employee) => (
-                <option key={employee.key} value={employee.name}>
-                  {employee.department ? `${employee.name} · ${employee.department}` : employee.name}
-                </option>
-              ))}
-            </datalist>
-          </span>
-        </label>
+
+            {suggestionsOpen ? (
+              <div className="search-suggestions" id="employee-search-suggestions">
+                {suggestions.length ? (
+                  <ul role="listbox" aria-label="员工搜索建议">
+                    {suggestions.map((employee, index) => {
+                      const pinyinLabel = employeePinyinLabel(employee.name)
+                      return (
+                        <li
+                          key={employee.key}
+                          id={`employee-search-option-${index}`}
+                          role="option"
+                          aria-selected={index === activeIndex}
+                          className={`search-option${index === activeIndex ? ' is-active' : ''}`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          onClick={() => chooseEmployee(employee)}
+                        >
+                          <span className="search-option-main">
+                            <span className="search-option-name">{employee.name}</span>
+                            {pinyinLabel ? (
+                              <span className="search-option-pinyin">{pinyinLabel}</span>
+                            ) : null}
+                          </span>
+                          <span className="search-option-department">
+                            {employee.department || '未分部门'}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="search-empty">没有匹配的员工</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="filter-meta">
