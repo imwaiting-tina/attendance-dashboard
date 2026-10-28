@@ -5,8 +5,6 @@ interface PinyinIndex {
   full: string
   /** 每个音节首字母，如 陈圆 → cy */
   initials: string
-  /** 带空格的全拼，用于下拉提示，如 chen yuan */
-  display: string
 }
 
 const indexCache = new Map<string, PinyinIndex>()
@@ -33,7 +31,6 @@ function buildIndex(name: string): PinyinIndex {
   const index: PinyinIndex = {
     full: syllables.join(''),
     initials: syllables.map((syllable) => syllable[0] ?? '').join(''),
-    display: syllables.filter((syllable) => /^[a-z]+$/.test(syllable)).join(' '),
   }
   indexCache.set(name, index)
   return index
@@ -67,9 +64,4 @@ export function scoreEmployeeKeyword(name: string, keyword: string): number {
 
 export function matchesEmployeeKeyword(name: string, keyword: string): boolean {
   return scoreEmployeeKeyword(name, keyword) >= 0
-}
-
-/** 下拉候选中展示的拼音，如「chen yuan」 */
-export function employeePinyinLabel(name: string): string {
-  return buildIndex(name).display
 }

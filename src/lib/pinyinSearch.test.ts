@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  employeePinyinLabel,
-  matchesEmployeeKeyword,
-  scoreEmployeeKeyword,
-} from './pinyinSearch'
+import { matchesEmployeeKeyword, scoreEmployeeKeyword } from './pinyinSearch'
 
 describe('拼音员工搜索', () => {
   it('首字母可以匹配姓名', () => {
@@ -43,10 +39,5 @@ describe('拼音员工搜索', () => {
     expect(scoreEmployeeKeyword('陈圆', 'chenyuan')).toBeGreaterThan(
       scoreEmployeeKeyword('陈圆', 'yuan'),
     )
-  })
-
-  it('下拉提示展示带空格的全拼', () => {
-    expect(employeePinyinLabel('陈圆')).toBe('chen yuan')
-    expect(employeePinyinLabel('Yvonne Lai')).toBe('')
   })
 })
