@@ -137,23 +137,29 @@ function xAxisCommon(points: MonthlyPoint[], theme: ChartTheme, boundaryGap: boo
   }
 }
 
-function lastIndexLabel(
+interface ValueLabelOptions {
+  position?: 'top' | 'right' | 'bottom' | 'inside'
+  fontSize?: number
+  /** 加一圈与图表背景同色的描边，避免标签压在柱形或面积上时看不清 */
+  halo?: boolean
+}
+
+function valueLabel(
   theme: ChartTheme,
-  lastIndex: number,
-  textForIndex: (index: number) => string,
-  position: 'top' | 'right' = 'top',
+  formatter: (params: TooltipParam) => string,
+  options: ValueLabelOptions = {},
 ) {
   return {
     show: true,
-    position,
-    distance: position === 'top' ? 5 : 8,
+    position: options.position ?? 'top',
+    distance: 4,
     color: theme.textSecondary,
-    fontSize: 11,
+    fontSize: options.fontSize ?? 11,
     fontFamily: FONT_FAMILY,
-    formatter: (params: TooltipParam) => {
-      if (params.dataIndex !== lastIndex) return ''
-      return textForIndex(lastIndex)
-    },
+    formatter,
+    ...(options.halo
+      ? { textBorderColor: theme.surface, textBorderWidth: 3 }
+      : {}),
   }
 }
 
@@ -162,10 +168,24 @@ export function buildLateTrendOption(points: MonthlyPoint[], theme: ChartTheme):
   const showLate = points.some((point) => point.late > 0)
   const showSevere = points.some((point) => point.severeLate > 0)
   const showLegend = showLate && showSevere
-  const last = points.length - 1
-  const lastTotal = points[last] ? points[last].late + points[last].severeLate : 0
+  const totalOf = (index: number) => {
+    const point = points[index]
+    return point ? point.late + point.severeLate : 0
+  }
 
-  const totalLabel = lastIndexLabel(theme, last, () => formatNumber(lastTotal))
+  // 堆叠柱只在最顶层标一次合计，避免迟到与严重迟到各标一个数字
+  const lateLabel = valueLabel(theme, (params) => {
+    const index = params.dataIndex ?? 0
+    if (!points[index] || totalOf(index) === 0) return ''
+    if (showSevere && points[index].severeLate > 0) return ''
+    return formatNumber(totalOf(index))
+  })
+  const severeLabel = valueLabel(theme, (params) => {
+    const index = params.dataIndex ?? 0
+    if (!points[index] || points[index].severeLate === 0) return ''
+    return formatNumber(totalOf(index))
+  })
+
   const series: EChartsCoreOption[] = []
   if (showLate) {
     series.push({
@@ -181,7 +201,7 @@ export function buildLateTrendOption(points: MonthlyPoint[], theme: ChartTheme):
       barMaxWidth: 22,
       itemStyle: { color: theme.series[0] },
       emphasis: { focus: 'series' },
-      label: showSevere ? undefined : totalLabel,
+      label: lateLabel,
     })
   }
   if (showSevere) {
@@ -196,13 +216,13 @@ export function buildLateTrendOption(points: MonthlyPoint[], theme: ChartTheme):
       barMaxWidth: 22,
       itemStyle: { color: theme.series[1] },
       emphasis: { focus: 'series' },
-      label: totalLabel,
+      label: severeLabel,
     })
   }
 
   return {
     animationDuration: 420,
-    grid: { left: 4, right: 12, top: showLegend ? 38 : 18, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 12, top: showLegend ? 38 : 24, bottom: 4, containLabel: true },
     legend: baseLegend(theme, showLegend),
     tooltip: {
       ...baseTooltip(theme, 'shadow'),
@@ -231,8 +251,6 @@ export function buildLateTrendOption(points: MonthlyPoint[], theme: ChartTheme):
 /** 缺卡主图：缺卡次数（柱）+ 补卡人数（线），同为计数、共用一根纵轴 */
 export function buildMissingPunchOption(points: MonthlyPoint[], theme: ChartTheme): EChartsCoreOption {
   const showProof = points.some((point) => point.proofCount > 0)
-  const last = points.length - 1
-  const lastMissing = points[last]?.missingPunch ?? 0
 
   const series: EChartsCoreOption[] = [
     {
@@ -242,7 +260,10 @@ export function buildMissingPunchOption(points: MonthlyPoint[], theme: ChartThem
       barMaxWidth: 22,
       itemStyle: { color: theme.series[0], borderRadius: [4, 4, 0, 0] },
       emphasis: { focus: 'series' },
-      label: lastIndexLabel(theme, last, () => formatNumber(lastMissing)),
+      label: valueLabel(theme, (params) => {
+        const point = points[params.dataIndex ?? 0]
+        return point && point.missingPunch > 0 ? formatNumber(point.missingPunch) : ''
+      }),
     },
   ]
 
@@ -259,12 +280,21 @@ export function buildMissingPunchOption(points: MonthlyPoint[], theme: ChartThem
       lineStyle: { width: 2, color: theme.series[1], cap: 'round', join: 'round' },
       itemStyle: { color: theme.series[1], borderColor: theme.surface, borderWidth: 2 },
       emphasis: { focus: 'series' },
+      label: valueLabel(
+        theme,
+        (params) => {
+          const point = points[params.dataIndex ?? 0]
+          return point && point.proofCount > 0 ? formatNumber(point.proofCount) : ''
+        },
+        { fontSize: 10, halo: true },
+      ),
     })
   }
 
   return {
     animationDuration: 420,
-    grid: { left: 4, right: 12, top: showProof ? 38 : 18, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 12, top: showProof ? 38 : 24, bottom: 4, containLabel: true },
+    labelLayout: { hideOverlap: true },
     legend: baseLegend(theme, showProof),
     tooltip: {
       ...baseTooltip(theme, 'shadow'),
@@ -290,12 +320,9 @@ export function buildMissingPunchOption(points: MonthlyPoint[], theme: ChartThem
 
 /** 考勤异常单独一张小图，避免与「次 / 人」共用纵轴 */
 export function buildAbnormalDaysOption(points: MonthlyPoint[], theme: ChartTheme): EChartsCoreOption {
-  const last = points.length - 1
-  const lastValue = points[last]?.abnormalDays ?? 0
-
   return {
     animationDuration: 420,
-    grid: { left: 4, right: 12, top: 14, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 12, top: 22, bottom: 4, containLabel: true },
     legend: baseLegend(theme, false),
     tooltip: {
       ...baseTooltip(theme, 'shadow'),
@@ -320,7 +347,14 @@ export function buildAbnormalDaysOption(points: MonthlyPoint[], theme: ChartThem
         barMaxWidth: 22,
         itemStyle: { color: theme.series[0], borderRadius: [4, 4, 0, 0] },
         emphasis: { focus: 'series' },
-        label: lastIndexLabel(theme, last, () => formatNumber(lastValue)),
+        label: valueLabel(
+          theme,
+          (params) => {
+            const point = points[params.dataIndex ?? 0]
+            return point && point.abnormalDays > 0 ? formatNumber(point.abnormalDays) : ''
+          },
+          { fontSize: 10 },
+        ),
       },
     ],
   }
@@ -358,11 +392,20 @@ export function buildLeaveTrendOption(points: MonthlyPoint[], theme: ChartTheme)
       borderWidth: 1,
     },
     emphasis: { focus: 'series' },
+    // 只由当月最顶层的假期种类标出堆叠合计，保证每月一个数字
+    label: valueLabel(theme, (params) => {
+      const pointIndex = params.dataIndex ?? 0
+      if (topTypeIndex[pointIndex] !== seriesIndex) return ''
+      const point = points[pointIndex]
+      if (!point) return ''
+      const total = activeTypes.reduce((sum, item) => sum + point[item.key], 0)
+      return formatNumber(total)
+    }),
   }))
 
   return {
     animationDuration: 420,
-    grid: { left: 4, right: 12, top: activeTypes.length > 1 ? 38 : 18, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 12, top: activeTypes.length > 1 ? 38 : 24, bottom: 4, containLabel: true },
     legend: baseLegend(theme, activeTypes.length > 1),
     tooltip: {
       ...baseTooltip(theme, 'shadow'),
@@ -393,8 +436,6 @@ export function buildLeaveTrendOption(points: MonthlyPoint[], theme: ChartTheme)
 
 /** 加班趋势：月度柱 + 3 个月移动平均线，同一纵轴（小时） */
 export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): EChartsCoreOption {
-  const last = points.length - 1
-  const lastValue = points[last]?.overtimeHours ?? 0
   // 少于 3 个月或月份不连续时，移动平均没有意义，不显示平均线
   const showAverage = canShowMovingAverage(points)
   const movingAverage = showAverage
@@ -413,7 +454,6 @@ export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): 
       barMaxWidth: 22,
       itemStyle: { color: theme.series[0], borderRadius: [4, 4, 0, 0] },
       emphasis: { focus: 'series' },
-      label: lastIndexLabel(theme, last, () => `${formatNumber(lastValue)} h`, 'right'),
     },
   ]
   if (showAverage) {
@@ -428,14 +468,59 @@ export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): 
       lineStyle: { width: 2, color: theme.series[1], cap: 'round', join: 'round' },
       itemStyle: { color: theme.series[1], borderColor: theme.surface, borderWidth: 2 },
       emphasis: { focus: 'series' },
+      // 只标最新一个月的移动平均值，避免每个点都标数字
+      label: {
+        ...valueLabel(
+          theme,
+          (params) => {
+            const index = params.dataIndex ?? 0
+            if (index !== points.length - 1) return ''
+            const value = movingAverage[index]
+            return typeof value === 'number' ? formatNumber(value) : ''
+          },
+          { fontSize: 10, halo: true },
+        ),
+        distance: 8,
+      },
     })
   }
+  // 数值标注单独用一条透明折线绘制，保证始终压在柱形与平均线之上，不被线点遮住
+  series.push({
+    name: '加班时长标注',
+    type: 'line',
+    z: 5,
+    silent: true,
+    data: points.map((point, index) => ({
+      value: point.overtimeHours,
+      // 有平均线时，最后一个月向右标，避开平均线末点的圆点
+      ...(showAverage && index === points.length - 1
+        ? { label: { position: 'right', distance: 6 } }
+        : {}),
+    })),
+    symbol: 'circle',
+    symbolSize: 1,
+    showSymbol: true,
+    lineStyle: { opacity: 0 },
+    itemStyle: { color: 'transparent' },
+    label: valueLabel(
+      theme,
+      (params) => {
+        const point = points[params.dataIndex ?? 0]
+        return point && point.overtimeHours > 0 ? formatNumber(point.overtimeHours) : ''
+      },
+      { halo: true },
+    ),
+    tooltip: { show: false },
+  })
 
   return {
     animationDuration: 420,
-    // 右侧留出端点标签与移动平均线的间距
-    grid: { left: 4, right: 46, top: 38, bottom: 4, containLabel: true },
-    legend: baseLegend(theme, showAverage),
+    // 右侧为最后一个月向右的数值标注留出空间
+    grid: { left: 4, right: 52, top: 38, bottom: 4, containLabel: true },
+    legend: {
+      ...baseLegend(theme, showAverage),
+      data: showAverage ? ['加班时长', '3 个月移动平均'] : ['加班时长'],
+    },
     tooltip: {
       ...baseTooltip(theme, 'shadow'),
       formatter: (params: unknown) => {
@@ -467,11 +552,11 @@ export function buildAttendanceRateOption(points: MonthlyPoint[], theme: ChartTh
   // 向下取整到 5%；若最低点刚好落在刻度上，再留一格，避免折线贴底
   const floorRate = Math.floor(minRate / 5) * 5
   const axisMin = Math.max(0, minRate === floorRate ? floorRate - 5 : floorRate)
-  const last = points.length - 1
 
   return {
     animationDuration: 420,
-    grid: { left: 4, right: 18, top: 18, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 18, top: 30, bottom: 4, containLabel: true },
+    labelLayout: { hideOverlap: true },
     legend: baseLegend(theme, false),
     tooltip: {
       ...baseTooltip(theme, 'line'),
@@ -504,7 +589,11 @@ export function buildAttendanceRateOption(points: MonthlyPoint[], theme: ChartTh
       {
         name: '出勤率',
         type: 'line',
-        data: rates,
+        // 相邻月份数值接近时上下交替标注，避免标签互相遮挡
+        data: rates.map((rate, index) => ({
+          value: rate,
+          label: { position: index % 2 === 0 ? 'top' : 'bottom' },
+        })),
         connectNulls: false,
         symbol: 'circle',
         symbolSize: 8,
@@ -513,7 +602,14 @@ export function buildAttendanceRateOption(points: MonthlyPoint[], theme: ChartTh
         itemStyle: { color: theme.series[0], borderColor: theme.surface, borderWidth: 2 },
         areaStyle: { color: theme.series[0], opacity: 0.1 },
         emphasis: { focus: 'series' },
-        label: lastIndexLabel(theme, last, (index) => formatRate(points[index].rate), 'top'),
+        label: valueLabel(
+          theme,
+          (params) => {
+            const point = points[params.dataIndex ?? 0]
+            return point ? formatRate(point.rate) : ''
+          },
+          { halo: true },
+        ),
       },
     ],
   }
