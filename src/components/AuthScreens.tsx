@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Sun,
 } from 'lucide-react'
+import { accountToEmail } from '../lib/account'
 import { supabase } from '../lib/supabase'
 import type { ThemeMode } from '../lib/theme'
 
@@ -54,15 +55,15 @@ function AuthShell({ mode, onToggleTheme, children }: ThemeProps & { children: R
 }
 
 function translateAuthError(message: string): string {
-  if (/invalid login credentials/i.test(message)) return '邮箱或密码错误'
-  if (/email not confirmed/i.test(message)) return '邮箱尚未确认，请先在 Supabase 中确认账号'
+  if (/invalid login credentials/i.test(message)) return '账号或密码错误'
+  if (/email not confirmed/i.test(message)) return '账号尚未确认，请先在 Supabase 中确认账号'
   if (/failed to fetch|networkerror|network error/i.test(message)) return '无法连接 Supabase，请检查网络或项目地址'
   if (/rate limit|too many requests/i.test(message)) return '尝试次数过多，请稍后再试'
   return `登录失败：${message}`
 }
 
 export function LoginScreen({ mode, onToggleTheme }: ThemeProps) {
-  const [email, setEmail] = useState('')
+  const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -74,7 +75,7 @@ export function LoginScreen({ mode, onToggleTheme }: ThemeProps) {
     setLoading(true)
     setError(null)
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: accountToEmail(account),
       password,
     })
     if (signInError) setError(translateAuthError(signInError.message))
@@ -93,13 +94,16 @@ export function LoginScreen({ mode, onToggleTheme }: ThemeProps) {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="form-field">
-            <span>邮箱</span>
+            <span>账号</span>
             <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@company.com"
+              type="text"
+              value={account}
+              onChange={(event) => setAccount(event.target.value)}
+              placeholder="tina"
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
               autoFocus
             />
@@ -170,12 +174,12 @@ VITE_SUPABASE_ANON_KEY=your-anon-key`}
 }
 
 interface NoAccessProps extends ThemeProps {
-  email: string
+  account: string
   onSignOut: () => void
   detail?: string | null
 }
 
-export function NoAccessScreen({ mode, onToggleTheme, email, onSignOut, detail }: NoAccessProps) {
+export function NoAccessScreen({ mode, onToggleTheme, account, onSignOut, detail }: NoAccessProps) {
   return (
     <AuthShell mode={mode} onToggleTheme={onToggleTheme}>
       <div className="auth-card card setup-card">
@@ -185,7 +189,7 @@ export function NoAccessScreen({ mode, onToggleTheme, email, onSignOut, detail }
         </span>
         <h2>该账号不是管理员</h2>
         <p className="auth-lead">
-          当前登录账号 <strong>{email}</strong> 不在管理员名单中，无法查看或导入考勤数据。
+          当前登录账号 <strong>{account}</strong> 不在管理员名单中，无法查看或导入考勤数据。
         </p>
         {detail ? <p className="auth-detail">权限检查返回：{detail}</p> : null}
         <button type="button" className="btn btn-secondary" onClick={onSignOut}>

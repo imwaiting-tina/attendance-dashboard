@@ -79,7 +79,7 @@ npm run dev
    npx supabase db push
    ```
 
-3. 复制初始化配置并填写 **service_role** 与管理员邮箱、强密码：
+3. 复制初始化配置并填写 **service_role** 与管理员账号（内部邮箱形式）、强密码：
 
    ```bash
    cp .env.setup.example .env.setup
@@ -90,6 +90,8 @@ npm run dev
    ```bash
    npm run bootstrap:admin
    ```
+
+> 登录页输入账号名（如 `tina`）即可，系统会自动补全为 `tina@attendance.local`；也可以直接输入完整邮箱。
 
 5. 在 Supabase 控制台关闭邮箱自助注册（Authentication → Sign In / Providers → Email → 关闭 Enable sign-ups）。
 6. 把 `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY` 写入 `.env.local`。

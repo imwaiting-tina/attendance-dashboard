@@ -332,7 +332,7 @@ select:disabled {
   color: var(--muted);
 }
 
-.user-email {
+.user-account {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

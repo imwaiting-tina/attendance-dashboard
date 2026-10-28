@@ -10,6 +10,7 @@ import {
 import { Dashboard } from './components/Dashboard'
 import { useAttendanceData } from './hooks/useAttendanceData'
 import { useTheme } from './hooks/useTheme'
+import { displayAccount } from './lib/account'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 
 type AdminState = 'checking' | 'allowed' | 'denied'
@@ -115,7 +116,7 @@ export default function App() {
       <NoAccessScreen
         mode={mode}
         onToggleTheme={toggleTheme}
-        email={session.user.email ?? '未知账号'}
+        account={displayAccount(session.user.email) || '未知账号'}
         detail={adminError}
         onSignOut={() => void handleSignOut()}
       />
@@ -124,7 +125,7 @@ export default function App() {
 
   return (
     <Dashboard
-      email={session.user.email ?? '管理员'}
+      account={displayAccount(session.user.email) || '管理员'}
       records={data.records}
       periods={data.periods}
       loading={data.loading}

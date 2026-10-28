@@ -12,7 +12,7 @@ import type { ThemeMode } from '../lib/theme'
 import type { AttendancePeriod } from '../lib/types'
 
 interface HeaderProps {
-  email: string
+  account: string
   periods: AttendancePeriod[]
   mode: ThemeMode
   onToggleTheme: () => void
@@ -22,7 +22,7 @@ interface HeaderProps {
 }
 
 export function Header({
-  email,
+  account,
   periods,
   mode,
   onToggleTheme,
@@ -82,9 +82,9 @@ export function Header({
             <Upload size={16} />
             <span className="btn-label">导入考勤表</span>
           </button>
-          <div className="user-chip" title={email}>
+          <div className="user-chip" title={account}>
             <UserRound size={15} aria-hidden="true" />
-            <span className="user-email">{email}</span>
+            <span className="user-account">{account}</span>
           </div>
           <button
             type="button"

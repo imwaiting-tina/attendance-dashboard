@@ -46,7 +46,7 @@ const ImportDialog = lazy(() =>
 )
 
 interface DashboardProps {
-  email: string
+  account: string
   records: AttendanceRecord[]
   periods: AttendancePeriod[]
   loading: boolean
@@ -105,7 +105,7 @@ function shortenPeriodDate(value: string | null | undefined): string {
 }
 
 export function Dashboard({
-  email,
+  account,
   records,
   periods,
   loading,
@@ -402,7 +402,7 @@ export function Dashboard({
   return (
     <div className="app-shell">
       <Header
-        email={email}
+        account={account}
         periods={periods}
         mode={mode}
         onToggleTheme={onToggleTheme}
