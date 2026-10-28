@@ -108,13 +108,26 @@ export function LeaveTrendCard({ points, theme }: TrendProps) {
 export function OvertimeCard({ points, theme }: TrendProps) {
   const option = useMemo(() => buildOvertimeOption(points, theme), [points, theme])
   const empty = points.length === 0 || points.every((point) => point.overtimeHours === 0)
+  const showAverage = points.length >= 3
 
   return (
-    <ChartCard title="加班趋势" subtitle="月度加班时长与 3 个月移动平均" unit="小时">
+    <ChartCard
+      title="加班趋势"
+      subtitle={showAverage ? '月度加班时长与 3 个月移动平均' : '单月查看不计算移动平均'}
+      unit="小时"
+    >
       {empty ? (
         <ChartEmpty height={290} message="当前范围内没有加班记录" />
       ) : (
-        <Chart option={option} height={290} ariaLabel="加班趋势图，展示月度加班时长与三个月移动平均" />
+        <Chart
+          option={option}
+          height={290}
+          ariaLabel={
+            showAverage
+              ? '加班趋势图，展示月度加班时长与三个月移动平均'
+              : '加班趋势图，展示所选月份的加班时长'
+          }
+        />
       )}
     </ChartCard>
   )

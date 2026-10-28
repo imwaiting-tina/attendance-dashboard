@@ -254,6 +254,8 @@ export function buildMissingPunchOption(points: MonthlyPoint[], theme: ChartThem
       symbol: 'circle',
       symbolSize: 8,
       showSymbol: true,
+      // 单月视图下柱子会盖住线点，提高层级让补卡人数始终可见
+      z: 10,
       lineStyle: { width: 2, color: theme.series[1], cap: 'round', join: 'round' },
       itemStyle: { color: theme.series[1], borderColor: theme.surface, borderWidth: 2 },
       emphasis: { focus: 'series' },
@@ -393,17 +395,47 @@ export function buildLeaveTrendOption(points: MonthlyPoint[], theme: ChartTheme)
 export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): EChartsCoreOption {
   const last = points.length - 1
   const lastValue = points[last]?.overtimeHours ?? 0
-  const movingAverage = points.map((_, index) => {
-    if (index < 2) return null
-    const window = points.slice(index - 2, index + 1)
-    return Number((window.reduce((sum, point) => sum + point.overtimeHours, 0) / 3).toFixed(2))
-  })
+  // 少于 3 个月无法计算 3 个月移动平均，单月视图下不显示平均线
+  const showAverage = points.length >= 3
+  const movingAverage = showAverage
+    ? points.map((_, index) => {
+        if (index < 2) return null
+        const window = points.slice(index - 2, index + 1)
+        return Number((window.reduce((sum, point) => sum + point.overtimeHours, 0) / 3).toFixed(2))
+      })
+    : []
+
+  const series: EChartsCoreOption[] = [
+    {
+      name: '加班时长',
+      type: 'bar',
+      data: points.map((point) => point.overtimeHours),
+      barMaxWidth: 22,
+      itemStyle: { color: theme.series[0], borderRadius: [4, 4, 0, 0] },
+      emphasis: { focus: 'series' },
+      label: lastIndexLabel(theme, last, () => `${formatNumber(lastValue)} h`, 'right'),
+    },
+  ]
+  if (showAverage) {
+    series.push({
+      name: '3 个月移动平均',
+      type: 'line',
+      data: movingAverage,
+      symbol: 'circle',
+      symbolSize: 8,
+      showSymbol: true,
+      connectNulls: false,
+      lineStyle: { width: 2, color: theme.series[1], cap: 'round', join: 'round' },
+      itemStyle: { color: theme.series[1], borderColor: theme.surface, borderWidth: 2 },
+      emphasis: { focus: 'series' },
+    })
+  }
 
   return {
     animationDuration: 420,
     // 右侧留出端点标签与移动平均线的间距
     grid: { left: 4, right: 46, top: 38, bottom: 4, containLabel: true },
-    legend: baseLegend(theme, true),
+    legend: baseLegend(theme, showAverage),
     tooltip: {
       ...baseTooltip(theme, 'shadow'),
       formatter: (params: unknown) => {
@@ -415,7 +447,7 @@ export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): 
           { label: '加班时长', value: `${formatNumber(point.overtimeHours)} h`, color: theme.series[0] },
         ]
         const average = movingAverage[index]
-        if (average !== null) {
+        if (typeof average === 'number') {
           rows.push({ label: '3 个月移动平均', value: `${formatNumber(average)} h`, color: theme.series[1] })
         }
         return tooltipHtml(theme, formatMonthFull(point.month), rows)
@@ -423,29 +455,7 @@ export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): 
     },
     xAxis: xAxisCommon(points, theme, true),
     yAxis: valueAxisCommon(theme),
-    series: [
-      {
-        name: '加班时长',
-        type: 'bar',
-        data: points.map((point) => point.overtimeHours),
-        barMaxWidth: 22,
-        itemStyle: { color: theme.series[0], borderRadius: [4, 4, 0, 0] },
-        emphasis: { focus: 'series' },
-        label: lastIndexLabel(theme, last, () => `${formatNumber(lastValue)} h`, 'right'),
-      },
-      {
-        name: '3 个月移动平均',
-        type: 'line',
-        data: movingAverage,
-        symbol: 'circle',
-        symbolSize: 8,
-        showSymbol: true,
-        connectNulls: false,
-        lineStyle: { width: 2, color: theme.series[1], cap: 'round', join: 'round' },
-        itemStyle: { color: theme.series[1], borderColor: theme.surface, borderWidth: 2 },
-        emphasis: { focus: 'series' },
-      },
-    ],
+    series,
   }
 }
 

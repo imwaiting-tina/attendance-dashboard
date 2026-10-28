@@ -13,7 +13,7 @@ export function EmployeeTable({ employees, onSelect }: EmployeeTableProps) {
       <header className="card-head table-head">
         <div className="card-heading">
           <h2>员工概览</h2>
-          <p>按当前筛选汇总；点击姓名查看个人逐月趋势</p>
+          <p>按当前筛选汇总；点击姓名查看个人趋势</p>
         </div>
         <span className="count-badge">{employees.length} 人</span>
       </header>

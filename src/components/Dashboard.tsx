@@ -115,6 +115,7 @@ export function Dashboard({
   onSignOut,
   reload,
 }: DashboardProps) {
+  const [month, setMonth] = useState('all')
   const [department, setDepartment] = useState('all')
   const [search, setSearch] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -124,8 +125,13 @@ export function Dashboard({
   const toastIdRef = useRef(0)
 
   const theme = CHART_THEMES[mode]
-  const departments = useMemo(() => listDepartments(records), [records])
-  const allEmployees = useMemo(() => summarizeEmployees(records), [records])
+  // 月份筛选只影响可选的部门/员工与当前展示范围，不改变已导入的月份列表
+  const monthRecords = useMemo(
+    () => (month === 'all' ? records : records.filter((record) => record.month === month)),
+    [records, month],
+  )
+  const departments = useMemo(() => listDepartments(monthRecords), [monthRecords])
+  const allEmployees = useMemo(() => summarizeEmployees(monthRecords), [monthRecords])
   const employeeByKey = useMemo(
     () => new Map(allEmployees.map((employee) => [employee.employee_key, employee])),
     [allEmployees],
@@ -144,7 +150,8 @@ export function Dashboard({
 
   const selectedEmployee = selectedKey ? employeeByKey.get(selectedKey) : undefined
 
-  const scopeRecords = useMemo(() => {
+  // 不含月份筛选的基础范围，仅用于计算单月视图的“上一期”对比
+  const baseScopeRecords = useMemo(() => {
     if (selectedKey) return records.filter((record) => record.employee_key === selectedKey)
     const departmentRecords =
       department === 'all'
@@ -153,10 +160,23 @@ export function Dashboard({
     return filterByEmployeeSearch(departmentRecords, search)
   }, [records, department, search, selectedKey])
 
+  const scopeRecords = useMemo(
+    () =>
+      month === 'all'
+        ? baseScopeRecords
+        : baseScopeRecords.filter((record) => record.month === month),
+    [baseScopeRecords, month],
+  )
+
   const points = useMemo(() => aggregateByMonth(scopeRecords), [scopeRecords])
+  const comparisonPoints = useMemo(() => aggregateByMonth(baseScopeRecords), [baseScopeRecords])
   const employeeSummaries = useMemo(() => summarizeEmployees(scopeRecords), [scopeRecords])
   const latest = points[points.length - 1]
-  const previous = points[points.length - 2]
+  const previous = useMemo(() => {
+    if (!latest) return undefined
+    const index = comparisonPoints.findIndex((point) => point.month === latest.month)
+    return index > 0 ? comparisonPoints[index - 1] : undefined
+  }, [comparisonPoints, latest])
   const latestPeriod = latest ? periods.find((period) => period.month === latest.month) : undefined
   const latestPeriodDetail =
     latestPeriod?.period_start && latestPeriod?.period_end
@@ -165,19 +185,26 @@ export function Dashboard({
 
   const departmentLabel = department === 'all' ? '全公司' : department
   const searchTerm = search.trim()
+  const monthLabel = month === 'all' ? null : formatMonthFull(month)
   const scopeLabel = selectedEmployee
-    ? selectedEmployee.employee_name
-    : `${departmentLabel}${searchTerm ? ` · 姓名含“${searchTerm}”` : ''}`
-  const filterActive = department !== 'all' || searchTerm.length > 0 || Boolean(selectedKey)
+    ? `${selectedEmployee.employee_name}${monthLabel ? ` · ${monthLabel}` : ''}`
+    : `${monthLabel ? `${monthLabel} · ` : ''}${departmentLabel}${searchTerm ? ` · 姓名含“${searchTerm}”` : ''}`
+  const scopeSummary = `${scopeLabel} · ${month === 'all' ? `${points.length} 个月` : '单月查看'} · ${scopeRecords.length} 条记录`
+  const filterActive =
+    month !== 'all' || department !== 'all' || searchTerm.length > 0 || Boolean(selectedKey)
 
   const existingMonths = useMemo(() => new Set(periods.map((period) => period.month)), [periods])
 
   useEffect(() => {
-    if (selectedKey && !records.some((record) => record.employee_key === selectedKey)) {
+    if (selectedKey && !monthRecords.some((record) => record.employee_key === selectedKey)) {
       setSelectedKey(null)
       setSearch('')
     }
-  }, [records, selectedKey])
+  }, [monthRecords, selectedKey])
+
+  useEffect(() => {
+    if (month !== 'all' && !periods.some((period) => period.month === month)) setMonth('all')
+  }, [periods, month])
 
   useEffect(() => {
     if (department !== 'all' && !departments.includes(department)) setDepartment('all')
@@ -231,6 +258,7 @@ export function Dashboard({
   }
 
   const resetFilters = () => {
+    setMonth('all')
     setDepartment('all')
     setSearch('')
     setSelectedKey(null)
@@ -246,7 +274,12 @@ export function Dashboard({
     showToast('数据已删除')
   }
 
-  const recentPoints = points.slice(-3)
+  // 单月视图下，近 3 个月月均仍取截止到该月的最近三个月，避免只算一个月
+  const latestIndex = latest
+    ? comparisonPoints.findIndex((point) => point.month === latest.month)
+    : -1
+  const recentPoints =
+    latestIndex >= 0 ? comparisonPoints.slice(Math.max(0, latestIndex - 2), latestIndex + 1) : []
   const recentOvertime =
     recentPoints.length > 0
       ? recentPoints.reduce((sum, point) => sum + point.overtimeHours, 0) / recentPoints.length
@@ -350,6 +383,9 @@ export function Dashboard({
 
             <div className={`dashboard-content ${refreshing ? 'is-refreshing' : ''}`}>
               <FilterBar
+                months={periods.map((period) => period.month)}
+                month={month}
+                onMonthChange={setMonth}
                 departments={departments}
                 department={department}
                 onDepartmentChange={setDepartment}
@@ -357,7 +393,7 @@ export function Dashboard({
                 onSearchChange={handleSearchChange}
                 employeeOptions={employeeOptions}
                 personalMode={Boolean(selectedEmployee)}
-                summary={`${scopeLabel} · ${points.length} 个月 · ${scopeRecords.length} 条记录`}
+                summary={scopeSummary}
                 filterActive={filterActive}
                 onReset={resetFilters}
               />
@@ -384,7 +420,7 @@ export function Dashboard({
                 <section className="card state-card state-card-compact">
                   <Search size={26} />
                   <h2>当前筛选没有数据</h2>
-                  <p>换一个部门或姓名关键词，或清除筛选查看全部记录。</p>
+                  <p>换一个月份、部门或姓名关键词，或清除筛选查看全部记录。</p>
                   <button type="button" className="btn btn-secondary" onClick={resetFilters}>
                     清除筛选
                   </button>
@@ -396,7 +432,8 @@ export function Dashboard({
                       <div>
                         <h2 id="kpi-title">关键指标</h2>
                         <p>
-                          最新月份 {latest ? formatMonthFull(latest.month) : '—'}
+                          {month === 'all' ? '最新月份' : '查看月份'}{' '}
+                          {latest ? formatMonthFull(latest.month) : '—'}
                           {latestPeriodDetail ? ` · ${latestPeriodDetail}` : ''} · 与上一期对比
                         </p>
                       </div>
@@ -410,8 +447,10 @@ export function Dashboard({
                         <h2 id="trends-title">月度趋势</h2>
                         <p>
                           {selectedEmployee
-                            ? `${selectedEmployee.employee_name} 的个人逐月数据`
-                            : `${scopeLabel} · 所有图表共用当前筛选`}
+                            ? `${selectedEmployee.employee_name} 的个人${month === 'all' ? '逐月' : '单月'}数据`
+                            : month === 'all'
+                              ? `${scopeLabel} · 所有图表共用当前筛选`
+                              : `${scopeLabel} · 单月查看，图表仅显示该月`}
                         </p>
                       </div>
                     </div>

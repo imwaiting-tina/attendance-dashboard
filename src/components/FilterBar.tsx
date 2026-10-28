@@ -1,4 +1,5 @@
 import { ChevronDown, Search, X } from 'lucide-react'
+import { formatMonthFull } from '../lib/format'
 
 export interface EmployeeOption {
   key: string
@@ -7,6 +8,9 @@ export interface EmployeeOption {
 }
 
 interface FilterBarProps {
+  months: string[]
+  month: string
+  onMonthChange: (value: string) => void
   departments: string[]
   department: string
   onDepartmentChange: (value: string) => void
@@ -20,6 +24,9 @@ interface FilterBarProps {
 }
 
 export function FilterBar({
+  months,
+  month,
+  onMonthChange,
   departments,
   department,
   onDepartmentChange,
@@ -48,6 +55,28 @@ export function FilterBar({
               {departments.map((name) => (
                 <option key={name} value={name}>
                   {name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={15} aria-hidden="true" />
+          </span>
+        </label>
+
+        <label className="filter-field">
+          <span className="filter-label">
+            月份
+            <span className="field-hint">单月即单独查看</span>
+          </span>
+          <span className="select-wrap">
+            <select
+              value={month}
+              onChange={(event) => onMonthChange(event.target.value)}
+              aria-label="按月份筛选"
+            >
+              <option value="all">全部月份（趋势对比）</option>
+              {months.map((value) => (
+                <option key={value} value={value}>
+                  {formatMonthFull(value)}
                 </option>
               ))}
             </select>
