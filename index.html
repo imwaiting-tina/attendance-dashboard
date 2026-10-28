@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f9f9f7" />
+    <meta
+      name="description"
+      content="考勤汇总仪表盘：月度迟到、缺卡、假期、加班与出勤率趋势，支持导入新的考勤表。"
+    />
+    <title>考勤汇总仪表盘</title>
+    <script>
+      // 在首屏绘制前应用主题，避免深浅色闪烁
+      try {
+        var saved = localStorage.getItem('attendance-dashboard-theme')
+        var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (error) {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

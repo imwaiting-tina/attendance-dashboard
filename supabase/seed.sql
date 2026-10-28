@@ -1,0 +1,3 @@
+-- 本地 supabase db reset 时的占位文件。
+-- 初始考勤数据与管理员账号通过 scripts/seed.ts、scripts/bootstrap-admin.ts 写入，
+-- 不把真实员工数据或密码放进仓库。
