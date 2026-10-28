@@ -135,6 +135,7 @@ export function FilterBar({
         <div className="filter-field filter-field-search">
           <label className="filter-label" htmlFor="employee-search-input">
             员工
+            <span className="field-hint">姓名、拼音或首字母</span>
           </label>
           <div className="search-wrap">
             <Search size={15} className="search-icon" aria-hidden="true" />
@@ -158,7 +159,7 @@ export function FilterBar({
               placeholder="搜索姓名"
               autoComplete="off"
               role="combobox"
-              aria-label="搜索员工姓名"
+              aria-label="搜索员工姓名、拼音或首字母"
               aria-autocomplete="list"
               aria-expanded={suggestionsOpen}
               aria-controls="employee-search-suggestions"
