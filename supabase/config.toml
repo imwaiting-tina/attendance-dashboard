@@ -376,6 +376,11 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+[functions.admin-users]
+# 关闭平台层 JWT 校验，让 CORS 预检请求能到达函数；
+# 函数内部会自行验证用户 JWT、启用状态和管理员身份，权限不会因此放宽。
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

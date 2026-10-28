@@ -13,14 +13,21 @@ import { useTheme } from './hooks/useTheme'
 import { displayAccount } from './lib/account'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 
-type AdminState = 'checking' | 'allowed' | 'denied'
+interface AccountContext {
+  account: string
+  active: boolean
+  is_admin: boolean
+}
+
+type AccessState = 'checking' | 'ready' | 'denied'
 
 export default function App() {
   const { mode, toggleTheme } = useTheme()
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
-  const [adminState, setAdminState] = useState<AdminState>('checking')
-  const [adminError, setAdminError] = useState<string | null>(null)
+  const [accessState, setAccessState] = useState<AccessState>('checking')
+  const [accountContext, setAccountContext] = useState<AccountContext | null>(null)
+  const [accessError, setAccessError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!supabase) {
@@ -53,29 +60,55 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase || !session) {
-      setAdminState('checking')
-      setAdminError(null)
+      setAccessState('checking')
+      setAccountContext(null)
+      setAccessError(null)
       return
     }
 
     let active = true
-    setAdminState('checking')
-    setAdminError(null)
+    setAccessState('checking')
+    setAccountContext(null)
+    setAccessError(null)
 
-    void supabase.rpc('is_admin').then(
+    void supabase.rpc('account_context').then(
       ({ data, error }) => {
         if (!active) return
         if (error) {
-          setAdminState('denied')
-          setAdminError(error.message)
+          setAccessState('denied')
+          setAccessError(error.message)
           return
         }
-        setAdminState(data === true ? 'allowed' : 'denied')
+
+        const value = data as Partial<AccountContext> | null
+        if (
+          !value ||
+          typeof value.active !== 'boolean' ||
+          typeof value.is_admin !== 'boolean' ||
+          typeof value.account !== 'string'
+        ) {
+          setAccessState('denied')
+          setAccessError('账号状态返回格式错误')
+          return
+        }
+
+        const context: AccountContext = {
+          account: value.account,
+          active: value.active,
+          is_admin: value.is_admin,
+        }
+        setAccountContext(context)
+
+        if (!context.active) {
+          setAccessState('denied')
+          return
+        }
+        setAccessState('ready')
       },
       (error: unknown) => {
         if (!active) return
-        setAdminState('denied')
-        setAdminError(error instanceof Error ? error.message : String(error))
+        setAccessState('denied')
+        setAccessError(error instanceof Error ? error.message : String(error))
       },
     )
 
@@ -85,14 +118,15 @@ export default function App() {
   }, [session])
 
   const data = useAttendanceData(
-    isSupabaseConfigured && Boolean(session) && adminState === 'allowed',
+    isSupabaseConfigured && Boolean(session) && accessState === 'ready',
   )
 
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut()
     setSession(null)
-    setAdminState('checking')
-    setAdminError(null)
+    setAccessState('checking')
+    setAccountContext(null)
+    setAccessError(null)
   }
 
   if (!isSupabaseConfigured) {
@@ -107,25 +141,34 @@ export default function App() {
     return <LoginScreen mode={mode} onToggleTheme={toggleTheme} />
   }
 
-  if (adminState === 'checking') {
-    return <FullPageLoader message="正在验证管理员权限…" />
+  if (accessState === 'checking') {
+    return <FullPageLoader message="正在验证账号状态…" />
   }
 
-  if (adminState === 'denied') {
+  if (accessState === 'denied') {
+    const sessionAccount = displayAccount(session.user.email) || '未知账号'
     return (
       <NoAccessScreen
         mode={mode}
         onToggleTheme={toggleTheme}
-        account={displayAccount(session.user.email) || '未知账号'}
-        detail={adminError}
+        account={accountContext?.account || sessionAccount}
+        message={
+          accountContext && !accountContext.active
+            ? '该账号已被停用，无法查看考勤数据。请联系管理员重新启用。'
+            : '无法验证该账号的访问权限，请稍后刷新页面，或联系管理员检查迁移是否已执行。'
+        }
+        detail={accessError}
         onSignOut={() => void handleSignOut()}
       />
     )
   }
 
+  const sessionAccount = displayAccount(session.user.email) || '成员'
+
   return (
     <Dashboard
-      account={displayAccount(session.user.email) || '管理员'}
+      account={accountContext?.account || sessionAccount}
+      isAdmin={accountContext?.is_admin === true}
       records={data.records}
       periods={data.periods}
       loading={data.loading}

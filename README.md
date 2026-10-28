@@ -1,6 +1,6 @@
 # 考勤汇总仪表盘
 
-把每月考勤 Excel 导入 Supabase，在浏览器里生成跨月考勤趋势。前端部署在 GitHub Pages，数据只对管理员账号开放。
+把每月考勤 Excel 导入 Supabase，在浏览器里生成跨月考勤趋势。前端部署在 GitHub Pages，数据只对登录账号开放；管理员可以导入数据并管理账号。
 
 线上地址：<https://imwaiting-tina.github.io/attendance-dashboard/>
 
@@ -19,6 +19,7 @@
 - **考勤异常明细**：列出补卡证明为 N、异常天数大于 0 或带备注的记录，展示原表「备注」列的异常说明，并可导出 CSV。
 - **月度汇总表**：全部指标一屏查看，支持导出 CSV。
 - **数据管理**：查看已导入月份、来源文件、导入时间，按月份删除。
+- **账号与权限**：管理员可在顶栏「账号设置」中创建、停用、启用、删除账号并重置密码；成员账号只读查看仪表盘，也可以自行修改密码。停用或删除账号会立即失去数据访问权限。
 - **深浅色主题**、响应式布局与键盘可访问的弹窗。
 
 ## 统计口径
@@ -56,7 +57,8 @@ SheetJS 在浏览器解析 xlsx（Node 校验脚本共用同一解析器）
 - Excel：SheetJS `xlsx`
 - 数据表：`attendance_periods`、`attendance_records`、`app_admins`
 - 写入只通过 security definer RPC：`import_attendance`、`delete_attendance_period`
-- 读取由 RLS + `is_admin()` 限制为管理员
+- 读取由 RLS + `is_active_user()` 限制为启用账号；导入和删除仍要求 `is_admin()`
+- 账号管理由 Edge Function `admin-users` 处理，service_role 只存在于 Supabase 服务端环境
 
 ## 本地开发
 
@@ -66,7 +68,7 @@ cp .env.example .env.local   # 填入 Supabase URL 与 anon key
 npm run dev
 ```
 
-本地页面需要可用的 Supabase 项目和已登记的管理员账号；未配置时会显示配置说明页。
+本地页面需要可用的 Supabase 项目、`admin-users` Edge Function 和已登记的管理员账号；未配置时会显示配置说明页。
 
 ## Supabase 初始化
 
@@ -77,6 +79,7 @@ npm run dev
    npx supabase login
    npx supabase link --project-ref <project-ref>
    npx supabase db push
+   npx supabase functions deploy admin-users --use-api
    ```
 
 3. 复制初始化配置并填写 **service_role** 与管理员账号（内部邮箱形式）、强密码：
@@ -85,11 +88,13 @@ npm run dev
    cp .env.setup.example .env.setup
    ```
 
-4. 创建管理员并登记到 `app_admins`：
+4. 创建初始管理员并登记到 `app_admins`：
 
    ```bash
    npm run bootstrap:admin
    ```
+
+   后续账号统一在仪表盘的「账号设置 → 账号管理」中创建，不再需要写数据库。
 
 > 登录页输入账号名（如 `tina`）即可，系统会自动补全为 `tina@attendance.local`；也可以直接输入完整邮箱。
 
@@ -108,6 +113,14 @@ npm run seed -- "/path/to/考勤汇总文件夹"      # 再逐月原子入库
 - 当前 9 个月样例数据解析结果为 **9 个月 / 686 条员工记录**。
 - `validate` 会把员工行合计与每月「汇总」第 1 行合计逐项比对；7、8 月缺卡列的已知公式漏行会标为「已知公式漏行」。
 - `seed` 优先使用 service_role；没有 service_role 时会用 `VITE_SUPABASE_ANON_KEY` + 管理员账号登录后调用 RPC。
+
+## 账号与权限
+
+- **管理员**：可只读查看仪表盘、导入/删除考勤月份、创建和停用账号、删除账号、重置任意账号密码。
+- **成员**：只能只读查看仪表盘和导出数据，不能导入、删除或进入账号管理；可在「账号设置 → 修改密码」中验证当前密码后自行改密。
+- **停用**：使用 Supabase Auth 的封禁状态实现；已有登录会话也会被 RLS 拒绝读取。
+- **删除**：永久删除 Auth 账号，无法恢复；系统会阻止删除当前登录账号，并确保至少保留一个可用管理员。
+- 创建账号时输入的初始密码只显示在管理员自己的操作中，请通过安全渠道告知成员。
 
 ## 导入新月份（10 月、11 月、12 月……）
 
@@ -144,10 +157,11 @@ npm run seed -- "/path/to/考勤汇总文件夹"      # 再逐月原子入库
 ## 数据与安全
 
 - GitHub 仓库公开的是代码，不包含考勤数据或密钥；`*.xlsx`、`.env*` 均在忽略列表。
-- 前端只持有 anon key（设计上可公开）。未登录或非管理员无法读取业务表。
-- 业务表开启 RLS，只有 `app_admins` 中的用户可以 select；写入仅通过 RPC，RPC 内再次校验管理员。
-- service_role 只用于本机一次性初始化与 seed，绝不进入前端或 Actions secrets。
-- Supabase 免费项目建议只保留一个管理员账号，关闭注册。
+- 前端只持有 anon key（设计上可公开）。未登录、已停用或已删除的账号无法读取业务表。
+- 业务表开启 RLS，启用账号可以 select；写入仅通过 RPC，RPC 内再次校验管理员。
+- 账号管理 Edge Function 内自行验证用户 JWT、启用状态和 `app_admins` 身份；`verify_jwt = false` 只是让 CORS 预检能到达函数，不会放宽权限。
+- service_role 只用于本机一次性初始化、seed 和 Edge Function 服务端环境，绝不进入前端或 Actions secrets。
+- Supabase 免费项目建议只保留 1–2 个管理员账号，关闭注册。
 - 仓库内 `supabase/config.toml` 已与线上认证配置对齐：`[auth] enable_signup = false`（关闭自助注册）、`[auth.email] enable_signup = true`（保持邮箱登录方式可用）、`site_url` 指向 GitHub Pages。执行 `npx supabase config push` 前请确认这些值，避免把线上站点改回 localhost 或重新开放注册。
 
 ## 已知数据问题
@@ -162,7 +176,7 @@ npm run seed -- "/path/to/考勤汇总文件夹"      # 再逐月原子入库
 
 ```
 src/
-  components/          登录、仪表盘、图表、导入弹窗、数据管理
+  components/          登录、仪表盘、图表、导入弹窗、数据管理、账号设置
   hooks/               会话数据加载、主题
   lib/
     parseAttendance.ts Excel 解析（浏览器与 Node 共用）
@@ -170,10 +184,12 @@ src/
     aggregate.ts       月度与员工聚合
     chartOptions.ts    ECharts 配置
     supabase.ts        前端 Supabase 客户端
+    accountApi.ts      账号管理 Edge Function 客户端
 scripts/
   validate.ts          9 个月解析校验
   seed.ts              批量导入
   bootstrap-admin.ts   管理员初始化
-supabase/migrations/   表结构、RLS、导入 RPC
+supabase/migrations/   表结构、RLS、导入 RPC、账号权限
+supabase/functions/    admin-users 账号管理 Edge Function
 .github/workflows/     GitHub Pages 部署
 ```

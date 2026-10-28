@@ -5,6 +5,7 @@ import {
   Moon,
   Sun,
   Upload,
+  UserCog,
   UserRound,
 } from 'lucide-react'
 import { formatMonthRange } from '../lib/format'
@@ -13,21 +14,25 @@ import type { AttendancePeriod } from '../lib/types'
 
 interface HeaderProps {
   account: string
+  isAdmin: boolean
   periods: AttendancePeriod[]
   mode: ThemeMode
   onToggleTheme: () => void
   onOpenImport: () => void
   onOpenManage: () => void
+  onOpenAccount: () => void
   onSignOut: () => void
 }
 
 export function Header({
   account,
+  isAdmin,
   periods,
   mode,
   onToggleTheme,
   onOpenImport,
   onOpenManage,
+  onOpenAccount,
   onSignOut,
 }: HeaderProps) {
   const months = periods.map((period) => period.month)
@@ -62,30 +67,43 @@ export function Header({
           >
             {mode === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onOpenManage}
-            title="数据管理"
-            aria-label="数据管理"
-          >
-            <Database size={16} />
-            <span className="btn-label">数据管理</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onOpenImport}
-            title="导入考勤表"
-            aria-label="导入考勤表"
-          >
-            <Upload size={16} />
-            <span className="btn-label">导入考勤表</span>
-          </button>
-          <div className="user-chip" title={account}>
+          {isAdmin ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onOpenManage}
+                title="数据管理"
+                aria-label="数据管理"
+              >
+                <Database size={16} />
+                <span className="btn-label">数据管理</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onOpenImport}
+                title="导入考勤表"
+                aria-label="导入考勤表"
+              >
+                <Upload size={16} />
+                <span className="btn-label">导入考勤表</span>
+              </button>
+            </>
+          ) : null}
+          <div className="user-chip" title={`${account} · ${isAdmin ? '管理员' : '成员'}`}>
             <UserRound size={15} aria-hidden="true" />
             <span className="user-account">{account}</span>
           </div>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onOpenAccount}
+            title="账号设置"
+            aria-label="账号设置"
+          >
+            <UserCog size={18} />
+          </button>
           <button
             type="button"
             className="icon-btn"

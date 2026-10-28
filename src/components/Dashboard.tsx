@@ -25,6 +25,7 @@ import {
 } from '../lib/format'
 import { CHART_THEMES, type ThemeMode } from '../lib/theme'
 import type { AttendancePeriod, AttendanceRecord } from '../lib/types'
+import { AccountDialog } from './AccountDialog'
 import { AttendanceExceptions } from './AttendanceExceptions'
 import { DataManagementDialog } from './DataManagementDialog'
 import { EmployeeTable } from './EmployeeTable'
@@ -47,6 +48,7 @@ const ImportDialog = lazy(() =>
 
 interface DashboardProps {
   account: string
+  isAdmin: boolean
   records: AttendanceRecord[]
   periods: AttendancePeriod[]
   loading: boolean
@@ -106,6 +108,7 @@ function shortenPeriodDate(value: string | null | undefined): string {
 
 export function Dashboard({
   account,
+  isAdmin,
   records,
   periods,
   loading,
@@ -123,6 +126,7 @@ export function Dashboard({
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null)
   const toastIdRef = useRef(0)
 
@@ -403,11 +407,13 @@ export function Dashboard({
     <div className="app-shell">
       <Header
         account={account}
+        isAdmin={isAdmin}
         periods={periods}
         mode={mode}
         onToggleTheme={onToggleTheme}
         onOpenImport={() => setImportOpen(true)}
         onOpenManage={() => setManageOpen(true)}
+        onOpenAccount={() => setAccountOpen(true)}
         onSignOut={onSignOut}
       />
 
@@ -423,7 +429,7 @@ export function Dashboard({
             <CircleAlert size={28} />
             <h2>无法读取考勤数据</h2>
             <p>{error}</p>
-            <p className="state-hint">请确认 Supabase 迁移已执行，并且当前账号已在管理员名单中。</p>
+            <p className="state-hint">请确认 Supabase 迁移已执行，并且当前账号处于启用状态。</p>
             <button type="button" className="btn btn-primary" onClick={() => void reload()}>
               <RefreshCw size={16} />
               重试
@@ -433,11 +439,17 @@ export function Dashboard({
           <section className="card state-card">
             <FileSpreadsheet size={36} />
             <h2>还没有考勤数据</h2>
-            <p>先导入历史月份的考勤表，导入完成后仪表盘会自动生成。</p>
-            <button type="button" className="btn btn-primary" onClick={() => setImportOpen(true)}>
-              <Upload size={16} />
-              导入考勤表
-            </button>
+            <p>
+              {isAdmin
+                ? '先导入历史月份的考勤表，导入完成后仪表盘会自动生成。'
+                : '管理员尚未导入考勤表，请联系管理员添加数据后再查看。'}
+            </p>
+            {isAdmin ? (
+              <button type="button" className="btn btn-primary" onClick={() => setImportOpen(true)}>
+                <Upload size={16} />
+                导入考勤表
+              </button>
+            ) : null}
           </section>
         ) : (
           <>
@@ -569,10 +581,12 @@ export function Dashboard({
       <footer className="app-footer">
         <span>数据来源：月度考勤汇总表</span>
         <span className="footer-dot" aria-hidden="true" />
-        <span>仅管理员可见 · 支持从页面继续导入新月份</span>
+        <span>
+          {isAdmin ? '管理员可导入新月份并管理账号' : '登录账号可见 · 如需更新数据请联系管理员'}
+        </span>
       </footer>
 
-      {importOpen ? (
+      {isAdmin && importOpen ? (
         <Suspense
           fallback={
             <div className="modal-fallback" role="status">
@@ -589,11 +603,19 @@ export function Dashboard({
           />
         </Suspense>
       ) : null}
-      <DataManagementDialog
-        open={manageOpen}
-        onClose={() => setManageOpen(false)}
-        periods={periods}
-        onDeleted={handleDeleted}
+      {isAdmin ? (
+        <DataManagementDialog
+          open={manageOpen}
+          onClose={() => setManageOpen(false)}
+          periods={periods}
+          onDeleted={handleDeleted}
+        />
+      ) : null}
+      <AccountDialog
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        account={account}
+        isAdmin={isAdmin}
       />
 
       {toast ? (

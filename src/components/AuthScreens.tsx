@@ -49,7 +49,7 @@ function AuthShell({ mode, onToggleTheme, children }: ThemeProps & { children: R
         <ThemeToggle mode={mode} onToggleTheme={onToggleTheme} />
       </header>
       <main className="auth-main">{children}</main>
-      <footer className="auth-footer">数据仅对管理员开放 · 导入记录保存在私有 Supabase 项目中</footer>
+      <footer className="auth-footer">数据仅对登录账号开放 · 导入记录保存在私有 Supabase 项目中</footer>
     </div>
   )
 }
@@ -59,6 +59,7 @@ function translateAuthError(message: string): string {
   if (/email not confirmed/i.test(message)) return '账号尚未确认，请先在 Supabase 中确认账号'
   if (/failed to fetch|networkerror|network error/i.test(message)) return '无法连接 Supabase，请检查网络或项目地址'
   if (/rate limit|too many requests/i.test(message)) return '尝试次数过多，请稍后再试'
+  if (/banned/i.test(message)) return '账号已停用，请联系管理员'
   return `登录失败：${message}`
 }
 
@@ -87,10 +88,10 @@ export function LoginScreen({ mode, onToggleTheme }: ThemeProps) {
       <div className="auth-card card">
         <span className="auth-badge">
           <ShieldCheck size={14} />
-          管理员入口
+          登录入口
         </span>
         <h2>欢迎回来</h2>
-        <p className="auth-lead">登录后查看月度趋势、部门汇总，并导入新的考勤表。</p>
+        <p className="auth-lead">登录后查看月度趋势与部门汇总；管理员还可以导入新的考勤表。</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="form-field">
@@ -99,7 +100,7 @@ export function LoginScreen({ mode, onToggleTheme }: ThemeProps) {
               type="text"
               value={account}
               onChange={(event) => setAccount(event.target.value)}
-              placeholder="tina"
+              placeholder="输入账号"
               autoComplete="username"
               autoCapitalize="none"
               autoCorrect="off"
@@ -143,7 +144,7 @@ export function LoginScreen({ mode, onToggleTheme }: ThemeProps) {
           </button>
         </form>
 
-        <p className="auth-note">系统不开放注册，账号由管理员在 Supabase 中创建。</p>
+        <p className="auth-note">系统不开放注册，账号由管理员在仪表盘中创建。</p>
       </div>
     </AuthShell>
   )
@@ -166,7 +167,7 @@ export function SetupScreen({ mode, onToggleTheme }: ThemeProps) {
 VITE_SUPABASE_ANON_KEY=your-anon-key`}
         </pre>
         <p className="auth-note">
-          GitHub Pages 部署时，请把同名变量写入仓库的 Actions secrets。anon key 可以公开，但业务数据受 RLS 与管理员名单保护。
+          GitHub Pages 部署时，请把同名变量写入仓库的 Actions secrets。anon key 可以公开，但业务数据受 RLS 与登录账号保护。
         </p>
       </div>
     </AuthShell>
@@ -175,23 +176,31 @@ VITE_SUPABASE_ANON_KEY=your-anon-key`}
 
 interface NoAccessProps extends ThemeProps {
   account: string
+  message: string
   onSignOut: () => void
   detail?: string | null
 }
 
-export function NoAccessScreen({ mode, onToggleTheme, account, onSignOut, detail }: NoAccessProps) {
+export function NoAccessScreen({
+  mode,
+  onToggleTheme,
+  account,
+  message,
+  onSignOut,
+  detail,
+}: NoAccessProps) {
   return (
     <AuthShell mode={mode} onToggleTheme={onToggleTheme}>
       <div className="auth-card card setup-card">
         <span className="auth-badge auth-badge-warning">
           <ShieldCheck size={14} />
-          权限不足
+          账号不可用
         </span>
-        <h2>该账号不是管理员</h2>
+        <h2>暂时无法访问仪表盘</h2>
         <p className="auth-lead">
-          当前登录账号 <strong>{account}</strong> 不在管理员名单中，无法查看或导入考勤数据。
+          当前登录账号 <strong>{account}</strong>：{message}
         </p>
-        {detail ? <p className="auth-detail">权限检查返回：{detail}</p> : null}
+        {detail ? <p className="auth-detail">错误信息：{detail}</p> : null}
         <button type="button" className="btn btn-secondary" onClick={onSignOut}>
           <LogOut size={16} />
           退出并更换账号
