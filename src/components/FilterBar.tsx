@@ -9,8 +9,10 @@ export interface EmployeeOption {
 
 interface FilterBarProps {
   months: string[]
-  month: string
-  onMonthChange: (value: string) => void
+  /** null 表示全部月份；数组表示用户选中的月份，可多选对比 */
+  selectedMonths: string[] | null
+  onSelectAllMonths: () => void
+  onToggleMonth: (value: string) => void
   departments: string[]
   department: string
   onDepartmentChange: (value: string) => void
@@ -25,8 +27,9 @@ interface FilterBarProps {
 
 export function FilterBar({
   months,
-  month,
-  onMonthChange,
+  selectedMonths,
+  onSelectAllMonths,
+  onToggleMonth,
   departments,
   department,
   onDepartmentChange,
@@ -38,6 +41,8 @@ export function FilterBar({
   filterActive,
   onReset,
 }: FilterBarProps) {
+  const allMonthsSelected = selectedMonths === null
+
   return (
     <section className="card filter-bar" aria-label="筛选条件">
       <div className="filter-controls">
@@ -55,28 +60,6 @@ export function FilterBar({
               {departments.map((name) => (
                 <option key={name} value={name}>
                   {name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={15} aria-hidden="true" />
-          </span>
-        </label>
-
-        <label className="filter-field">
-          <span className="filter-label">
-            月份
-            <span className="field-hint">单月即单独查看</span>
-          </span>
-          <span className="select-wrap">
-            <select
-              value={month}
-              onChange={(event) => onMonthChange(event.target.value)}
-              aria-label="按月份筛选"
-            >
-              <option value="all">全部月份（趋势对比）</option>
-              {months.map((value) => (
-                <option key={value} value={value}>
-                  {formatMonthFull(value)}
                 </option>
               ))}
             </select>
@@ -128,6 +111,37 @@ export function FilterBar({
             清除筛选
           </button>
         ) : null}
+      </div>
+
+      <div className="month-filter">
+        <span className="filter-label month-filter-label">
+          月份对比
+          <span className="field-hint">可多选，单选即单独查看</span>
+        </span>
+        <div className="month-chips" role="group" aria-label="选择要查看或对比的月份">
+          <button
+            type="button"
+            className="month-chip"
+            aria-pressed={allMonthsSelected}
+            onClick={onSelectAllMonths}
+          >
+            全部月份
+          </button>
+          {months.map((value) => {
+            const active = selectedMonths?.includes(value) ?? false
+            return (
+              <button
+                key={value}
+                type="button"
+                className="month-chip"
+                aria-pressed={active}
+                onClick={() => onToggleMonth(value)}
+              >
+                {formatMonthFull(value)}
+              </button>
+            )
+          })}
+        </div>
       </div>
     </section>
   )

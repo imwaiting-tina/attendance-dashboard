@@ -209,6 +209,65 @@ describe('parseAttendanceWorkbook - 超大 dimension', () => {
   })
 })
 
+describe('parseAttendanceWorkbook - 补卡状态与异常备注', () => {
+  it('保留 Y/N 原始状态，并读取考勤异常右侧备注；Y 按人计数', () => {
+    const header = [
+      null,
+      '序号',
+      '员工姓名',
+      '部门',
+      '迟到',
+      '严重迟到',
+      '缺卡',
+      '上级邮件/证明',
+      '考勤异常(天)',
+      '备注',
+      '加班(小时)',
+      '年假(天)',
+      '调休(天)',
+      '病假(天)',
+      '事假(天)',
+      '丧假',
+      '育儿假',
+    ]
+    const buffer = buildWorkbook({
+      汇总: [
+        [null, '合计', null, null, 0, 0, 7, null, 1, null, 4, 0, 0, 0, 0, 0, 0],
+        [null, '2026年1月考勤汇总'],
+        header,
+        [null, 1, '李欣怡', '财务部', 0, 0, 1, 'N', 0.5, '旷工半天', 1, 0, 0, 0, 0, 0, 0],
+        [null, 2, '李佳', '财务部', 0, 0, 1, 'Y', 0.5, '迟到超过1个小时算旷工半天', 2, 0, 0, 0, 0, 0, 0],
+        [null, 3, '王五', '财务部', 0, 0, 5, 'Y', 0, '', 1, 0, 0, 0, 0, 0, 0],
+      ],
+      财务部: [
+        [null, '姓名', '工作日', '班次', '打卡1时间', '打卡2时间'],
+        [null, '李欣怡', '26-01-05', '白班', '09:00', '18:00'],
+        [null, '李佳', '26-01-05', '白班', '09:00', '18:00'],
+        [null, '王五', '26-01-05', '白班', '09:00', '18:00'],
+      ],
+    })
+
+    const parsed = parseAttendanceWorkbook(buffer, '202601考勤表.xlsx')
+    const liXinyi = parsed.records.find((record) => record.employee_key === '李欣怡')
+    const liJia = parsed.records.find((record) => record.employee_key === '李佳')
+    const wangWu = parsed.records.find((record) => record.employee_key === '王五')
+
+    expect(liXinyi?.proof_y).toBe(false)
+    expect(liXinyi?.proof_status).toBe('N')
+    expect(liXinyi?.abnormal_days).toBe(0.5)
+    expect(liXinyi?.abnormal_remark).toBe('旷工半天')
+
+    expect(liJia?.proof_y).toBe(true)
+    expect(liJia?.proof_status).toBe('Y')
+    expect(liJia?.abnormal_remark).toBe('迟到超过1个小时算旷工半天')
+
+    expect(wangWu?.proof_status).toBe('Y')
+    // 李佳缺卡 1 次、王五缺卡 5 次，但都是 Y，补卡人数应为 2 人而不是 6 次
+    expect(parsed.totals.proofCount).toBe(2)
+    expect(parsed.totals.missingPunch).toBe(7)
+  })
+})
+
 describe('姓名与部门归一化', () => {
   it('繁转简、英文别名与空白处理', () => {
     expect(normalizeName('賴淑賢')).toBe('赖淑贤')

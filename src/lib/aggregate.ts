@@ -69,6 +69,18 @@ export function rateOf(totals: Pick<MonthlyTotals, 'attendedDays' | 'expectedDay
   return totals.attendedDays / totals.expectedDays
 }
 
+/** 判断选中的月份是否连续，非连续月份不适合计算 3 个月移动平均 */
+export function canShowMovingAverage(points: Pick<MonthlyPoint, 'month'>[]): boolean {
+  if (points.length < 3) return false
+  for (let index = 1; index < points.length; index += 1) {
+    const [year, month] = points[index - 1].month.split('-').map(Number)
+    const next = new Date(Date.UTC(year, month, 1))
+    const expected = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`
+    if (points[index].month !== expected) return false
+  }
+  return true
+}
+
 /** 按月份聚合；只返回实际有记录的月份（离职后不补 0） */
 export function aggregateByMonth(records: AttendanceRecord[]): MonthlyPoint[] {
   const byMonth = new Map<string, MonthlyTotals>()

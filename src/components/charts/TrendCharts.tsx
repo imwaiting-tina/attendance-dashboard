@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { MonthlyPoint } from '../../lib/aggregate'
+import { canShowMovingAverage, type MonthlyPoint } from '../../lib/aggregate'
 import {
   buildAbnormalDaysOption,
   buildAttendanceRateOption,
@@ -108,14 +108,15 @@ export function LeaveTrendCard({ points, theme }: TrendProps) {
 export function OvertimeCard({ points, theme }: TrendProps) {
   const option = useMemo(() => buildOvertimeOption(points, theme), [points, theme])
   const empty = points.length === 0 || points.every((point) => point.overtimeHours === 0)
-  const showAverage = points.length >= 3
+  const showAverage = canShowMovingAverage(points)
+  const averageHint = showAverage
+    ? '月度加班时长与 3 个月移动平均'
+    : points.length < 3
+      ? '少于 3 个月，不计算移动平均'
+      : '所选月份不连续，不计算移动平均'
 
   return (
-    <ChartCard
-      title="加班趋势"
-      subtitle={showAverage ? '月度加班时长与 3 个月移动平均' : '单月查看不计算移动平均'}
-      unit="小时"
-    >
+    <ChartCard title="加班趋势" subtitle={averageHint} unit="小时">
       {empty ? (
         <ChartEmpty height={290} message="当前范围内没有加班记录" />
       ) : (

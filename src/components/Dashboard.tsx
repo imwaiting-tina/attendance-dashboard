@@ -25,6 +25,7 @@ import {
 } from '../lib/format'
 import { CHART_THEMES, type ThemeMode } from '../lib/theme'
 import type { AttendancePeriod, AttendanceRecord } from '../lib/types'
+import { AttendanceExceptions } from './AttendanceExceptions'
 import { DataManagementDialog } from './DataManagementDialog'
 import { EmployeeTable } from './EmployeeTable'
 import { FilterBar, type EmployeeOption } from './FilterBar'
@@ -115,7 +116,8 @@ export function Dashboard({
   onSignOut,
   reload,
 }: DashboardProps) {
-  const [month, setMonth] = useState('all')
+  // null = 全部月份；数组 = 用户选中的月份，1 个为单月查看，2 个及以上为月份对比
+  const [selectedMonths, setSelectedMonths] = useState<string[] | null>(null)
   const [department, setDepartment] = useState('all')
   const [search, setSearch] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -125,10 +127,21 @@ export function Dashboard({
   const toastIdRef = useRef(0)
 
   const theme = CHART_THEMES[mode]
+  const availableMonths = useMemo(
+    () => periods.map((period) => period.month).sort((a, b) => a.localeCompare(b)),
+    [periods],
+  )
+  const selectedMonthSet = useMemo(
+    () => (selectedMonths ? new Set(selectedMonths) : null),
+    [selectedMonths],
+  )
   // 月份筛选只影响可选的部门/员工与当前展示范围，不改变已导入的月份列表
   const monthRecords = useMemo(
-    () => (month === 'all' ? records : records.filter((record) => record.month === month)),
-    [records, month],
+    () =>
+      selectedMonthSet
+        ? records.filter((record) => selectedMonthSet.has(record.month))
+        : records,
+    [records, selectedMonthSet],
   )
   const departments = useMemo(() => listDepartments(monthRecords), [monthRecords])
   const allEmployees = useMemo(() => summarizeEmployees(monthRecords), [monthRecords])
@@ -150,7 +163,7 @@ export function Dashboard({
 
   const selectedEmployee = selectedKey ? employeeByKey.get(selectedKey) : undefined
 
-  // 不含月份筛选的基础范围，仅用于计算单月视图的“上一期”对比
+  // 不含月份筛选的基础范围，用于单月对比上一自然月、近 3 个月月均等跨月计算
   const baseScopeRecords = useMemo(() => {
     if (selectedKey) return records.filter((record) => record.employee_key === selectedKey)
     const departmentRecords =
@@ -160,23 +173,31 @@ export function Dashboard({
     return filterByEmployeeSearch(departmentRecords, search)
   }, [records, department, search, selectedKey])
 
+  const monthMode: 'all' | 'single' | 'compare' =
+    selectedMonths === null ? 'all' : selectedMonths.length === 1 ? 'single' : 'compare'
+  const singleMonth = monthMode === 'single' ? (selectedMonths?.[0] ?? null) : null
+
   const scopeRecords = useMemo(
     () =>
-      month === 'all'
-        ? baseScopeRecords
-        : baseScopeRecords.filter((record) => record.month === month),
-    [baseScopeRecords, month],
+      selectedMonthSet
+        ? baseScopeRecords.filter((record) => selectedMonthSet.has(record.month))
+        : baseScopeRecords,
+    [baseScopeRecords, selectedMonthSet],
   )
 
   const points = useMemo(() => aggregateByMonth(scopeRecords), [scopeRecords])
   const comparisonPoints = useMemo(() => aggregateByMonth(baseScopeRecords), [baseScopeRecords])
   const employeeSummaries = useMemo(() => summarizeEmployees(scopeRecords), [scopeRecords])
   const latest = points[points.length - 1]
+  // 单月查看与上一自然月比较；多选对比与前一所选月份比较
   const previous = useMemo(() => {
     if (!latest) return undefined
-    const index = comparisonPoints.findIndex((point) => point.month === latest.month)
-    return index > 0 ? comparisonPoints[index - 1] : undefined
-  }, [comparisonPoints, latest])
+    if (monthMode === 'single') {
+      const index = comparisonPoints.findIndex((point) => point.month === latest.month)
+      return index > 0 ? comparisonPoints[index - 1] : undefined
+    }
+    return points.length > 1 ? points[points.length - 2] : undefined
+  }, [comparisonPoints, latest, monthMode, points])
   const latestPeriod = latest ? periods.find((period) => period.month === latest.month) : undefined
   const latestPeriodDetail =
     latestPeriod?.period_start && latestPeriod?.period_end
@@ -185,13 +206,31 @@ export function Dashboard({
 
   const departmentLabel = department === 'all' ? '全公司' : department
   const searchTerm = search.trim()
-  const monthLabel = month === 'all' ? null : formatMonthFull(month)
+  const monthLabel = singleMonth ? formatMonthFull(singleMonth) : null
+  const selectedMonthNames = points.map((point) => formatMonthFull(point.month))
   const scopeLabel = selectedEmployee
-    ? `${selectedEmployee.employee_name}${monthLabel ? ` · ${monthLabel}` : ''}`
-    : `${monthLabel ? `${monthLabel} · ` : ''}${departmentLabel}${searchTerm ? ` · 姓名含“${searchTerm}”` : ''}`
-  const scopeSummary = `${scopeLabel} · ${month === 'all' ? `${points.length} 个月` : '单月查看'} · ${scopeRecords.length} 条记录`
+    ? selectedEmployee.employee_name
+    : `${departmentLabel}${searchTerm ? ` · 姓名含“${searchTerm}”` : ''}`
+  const monthScopeLabel =
+    monthMode === 'all'
+      ? `${points.length} 个月`
+      : monthMode === 'single'
+        ? `${monthLabel} · 单月查看`
+        : points.length === 2
+          ? `${selectedMonthNames.join('、')} 对比`
+          : `${points.length} 个月对比`
+  const scopeSummary = `${scopeLabel} · ${monthScopeLabel} · ${scopeRecords.length} 条记录`
+  // 月度表/CSV 文件名带上所选月份，避免不同月份导出同名文件
+  const tableScopeLabel =
+    monthMode === 'all'
+      ? scopeLabel
+      : monthMode === 'single'
+        ? `${scopeLabel} · ${monthLabel}`
+        : points.length <= 2
+          ? `${scopeLabel} · ${selectedMonthNames.join('、')}`
+          : `${scopeLabel} · 所选 ${points.length} 个月`
   const filterActive =
-    month !== 'all' || department !== 'all' || searchTerm.length > 0 || Boolean(selectedKey)
+    selectedMonths !== null || department !== 'all' || searchTerm.length > 0 || Boolean(selectedKey)
 
   const existingMonths = useMemo(() => new Set(periods.map((period) => period.month)), [periods])
 
@@ -203,8 +242,13 @@ export function Dashboard({
   }, [monthRecords, selectedKey])
 
   useEffect(() => {
-    if (month !== 'all' && !periods.some((period) => period.month === month)) setMonth('all')
-  }, [periods, month])
+    if (!selectedMonths) return
+    const available = new Set(periods.map((period) => period.month))
+    const next = selectedMonths.filter((month) => available.has(month))
+    if (next.length !== selectedMonths.length) {
+      setSelectedMonths(next.length > 0 ? next : null)
+    }
+  }, [periods, selectedMonths])
 
   useEffect(() => {
     if (department !== 'all' && !departments.includes(department)) setDepartment('all')
@@ -258,10 +302,27 @@ export function Dashboard({
   }
 
   const resetFilters = () => {
-    setMonth('all')
+    setSelectedMonths(null)
     setDepartment('all')
     setSearch('')
     setSelectedKey(null)
+  }
+
+  const handleSelectAllMonths = () => {
+    setSelectedMonths(null)
+  }
+
+  const handleToggleMonth = (value: string) => {
+    setSelectedMonths((current) => {
+      // 从「全部月份」点某个 chip 时，先窄化为该月；再点其他月份即形成对比
+      if (current === null) return [value]
+      const next = current.includes(value)
+        ? current.filter((month) => month !== value)
+        : [...current, value].sort((a, b) => a.localeCompare(b))
+      // 取消到空，或恰好选满全部月份时，回到「全部月份」
+      if (next.length === 0 || next.length === availableMonths.length) return null
+      return next
+    })
   }
 
   const handleImported = async () => {
@@ -274,16 +335,19 @@ export function Dashboard({
     showToast('数据已删除')
   }
 
-  // 单月视图下，近 3 个月月均仍取截止到该月的最近三个月，避免只算一个月
+  // 单月/全部视图下，近 3 个月月均取截止到最新月的最近三个月；多选对比时按所选月份计算
   const latestIndex = latest
     ? comparisonPoints.findIndex((point) => point.month === latest.month)
     : -1
   const recentPoints =
     latestIndex >= 0 ? comparisonPoints.slice(Math.max(0, latestIndex - 2), latestIndex + 1) : []
+  const overtimeAveragePoints = monthMode === 'compare' ? points.slice(-3) : recentPoints
   const recentOvertime =
-    recentPoints.length > 0
-      ? recentPoints.reduce((sum, point) => sum + point.overtimeHours, 0) / recentPoints.length
+    overtimeAveragePoints.length > 0
+      ? overtimeAveragePoints.reduce((sum, point) => sum + point.overtimeHours, 0) /
+        overtimeAveragePoints.length
       : 0
+  const overtimeAverageLabel = monthMode === 'compare' ? '所选月份月均' : '近 3 个月月均'
 
   const lateTotal = latest ? latest.late + latest.severeLate : 0
   const previousLateTotal = previous ? previous.late + previous.severeLate : undefined
@@ -308,7 +372,7 @@ export function Dashboard({
         label="加班时长"
         value={formatNumber(latest.overtimeHours)}
         unit="h"
-        sub={`近 3 个月月均 ${formatNumber(recentOvertime)} h`}
+        sub={`${overtimeAverageLabel} ${formatNumber(recentOvertime)} h`}
         {...buildCountDelta(latest.overtimeHours, previous?.overtimeHours, 'neutral')}
       />
       <KpiCard
@@ -318,11 +382,17 @@ export function Dashboard({
         {...buildRateDelta(latest.rate, previous?.rate)}
       />
       <KpiCard
-        label="覆盖月份"
+        label={monthMode === 'all' ? '覆盖月份' : '所选月份'}
         value={String(points.length)}
         unit="个月"
         sub={`${countEmployees(scopeRecords)} 名员工 · ${scopeRecords.length} 条记录`}
-        deltaText={`最新 ${formatMonthFull(latest.month)}`}
+        deltaText={
+          monthMode === 'all'
+            ? `最新 ${formatMonthFull(latest.month)}`
+            : monthMode === 'single'
+              ? `查看 ${formatMonthFull(latest.month)}`
+              : `已选 ${points.length} 个月`
+        }
         deltaTone="neutral"
         deltaDirection="flat"
       />
@@ -383,9 +453,10 @@ export function Dashboard({
 
             <div className={`dashboard-content ${refreshing ? 'is-refreshing' : ''}`}>
               <FilterBar
-                months={periods.map((period) => period.month)}
-                month={month}
-                onMonthChange={setMonth}
+                months={availableMonths}
+                selectedMonths={selectedMonths}
+                onSelectAllMonths={handleSelectAllMonths}
+                onToggleMonth={handleToggleMonth}
                 departments={departments}
                 department={department}
                 onDepartmentChange={setDepartment}
@@ -432,9 +503,18 @@ export function Dashboard({
                       <div>
                         <h2 id="kpi-title">关键指标</h2>
                         <p>
-                          {month === 'all' ? '最新月份' : '查看月份'}{' '}
+                          {monthMode === 'all'
+                            ? '最新月份'
+                            : monthMode === 'single'
+                              ? '查看月份'
+                              : `对比 ${points.length} 个月 · 最新`}{' '}
                           {latest ? formatMonthFull(latest.month) : '—'}
-                          {latestPeriodDetail ? ` · ${latestPeriodDetail}` : ''} · 与上一期对比
+                          {latestPeriodDetail ? ` · ${latestPeriodDetail}` : ''} ·{' '}
+                          {monthMode === 'single'
+                            ? '与上一自然月对比'
+                            : monthMode === 'compare'
+                              ? '与前一所选月份对比'
+                              : '与上一月对比'}
                         </p>
                       </div>
                     </div>
@@ -447,10 +527,18 @@ export function Dashboard({
                         <h2 id="trends-title">月度趋势</h2>
                         <p>
                           {selectedEmployee
-                            ? `${selectedEmployee.employee_name} 的个人${month === 'all' ? '逐月' : '单月'}数据`
-                            : month === 'all'
+                            ? `${selectedEmployee.employee_name} 的个人${
+                                monthMode === 'all'
+                                  ? '逐月'
+                                  : monthMode === 'single'
+                                    ? '单月'
+                                    : '所选月份'
+                              }数据`
+                            : monthMode === 'all'
                               ? `${scopeLabel} · 所有图表共用当前筛选`
-                              : `${scopeLabel} · 单月查看，图表仅显示该月`}
+                              : monthMode === 'single'
+                                ? `${scopeLabel} · 单月查看，图表仅显示该月`
+                                : `${scopeLabel} · 已选 ${points.length} 个月对比，图表仅显示所选月份`}
                         </p>
                       </div>
                     </div>
@@ -463,7 +551,9 @@ export function Dashboard({
                     </div>
                   </section>
 
-                  <MonthlyTable points={points} periods={periods} scopeLabel={scopeLabel} />
+                  <MonthlyTable points={points} periods={periods} scopeLabel={tableScopeLabel} />
+
+                  <AttendanceExceptions records={scopeRecords} onSelect={selectEmployee} />
 
                   {selectedEmployee ? null : (
                     <EmployeeTable employees={employeeSummaries} onSelect={selectEmployee} />

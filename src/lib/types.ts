@@ -9,7 +9,11 @@ export interface AttendanceRecord {
   severe_late_count: number
   missing_punch_count: number
   proof_y: boolean
+  /** 原表「上级邮件/证明」状态：Y / N / 空白 */
+  proof_status: string
   abnormal_days: number
+  /** 原表「考勤异常（天）」右侧「备注」列说明 */
+  abnormal_remark: string
   overtime_hours: number
   annual_leave: number
   comp_leave: number

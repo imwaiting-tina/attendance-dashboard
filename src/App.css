@@ -396,6 +396,7 @@ select:disabled {
   top: 72px;
   z-index: 30;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 20px;
   padding: 15px 18px;
@@ -511,6 +512,60 @@ select:disabled {
   font-size: 11.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.month-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+.month-filter-label {
+  flex: none;
+}
+
+.month-chips {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 2px 3px;
+}
+
+.month-chip {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.month-chip:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.month-chip[aria-pressed='true'] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.month-chip[aria-pressed='true']:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .personal-banner {
@@ -891,6 +946,32 @@ select:disabled {
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
+}
+
+.table-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.exception-table {
+  min-width: 900px;
+}
+
+.exception-name-cell {
+  font-weight: 400;
+}
+
+.exception-remark {
+  min-width: 220px;
+  max-width: 460px;
+  white-space: normal !important;
+  line-height: 1.55;
+}
+
+.status-empty {
+  color: var(--muted);
 }
 
 .table-note {
@@ -1646,6 +1727,7 @@ select:disabled {
 
   .filter-bar {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 12px;
   }
@@ -1670,6 +1752,16 @@ select:disabled {
 
   .filter-summary {
     max-width: none;
+  }
+
+  .month-filter {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .month-chips {
+    width: 100%;
   }
 
   .modal {

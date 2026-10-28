@@ -163,7 +163,8 @@ export function MonthlyTable({ points, periods, scopeLabel }: MonthlyTableProps)
       </div>
 
       <p className="table-note">
-        出勤率 = 实际打卡天数 ÷ 应出勤天数（仅按实际打卡）。月度合计按原表考勤周期统计，周期起止见月份下方。
+        出勤率 = 实际打卡天数 ÷ 应出勤天数（仅按实际打卡）。补卡人数按 Y 员工每人每月计 1 人，
+        不论当月缺卡几次。月度合计按原表考勤周期统计，周期起止见月份下方。
       </p>
     </section>
   )

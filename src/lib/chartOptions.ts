@@ -1,5 +1,5 @@
 import type { EChartsCoreOption } from 'echarts/core'
-import type { MonthlyPoint } from './aggregate'
+import { canShowMovingAverage, type MonthlyPoint } from './aggregate'
 import { formatMonthAxis, formatMonthFull, formatNumber, formatRate } from './format'
 import { LEAVE_TYPES, type ChartTheme } from './theme'
 
@@ -395,8 +395,8 @@ export function buildLeaveTrendOption(points: MonthlyPoint[], theme: ChartTheme)
 export function buildOvertimeOption(points: MonthlyPoint[], theme: ChartTheme): EChartsCoreOption {
   const last = points.length - 1
   const lastValue = points[last]?.overtimeHours ?? 0
-  // 少于 3 个月无法计算 3 个月移动平均，单月视图下不显示平均线
-  const showAverage = points.length >= 3
+  // 少于 3 个月或月份不连续时，移动平均没有意义，不显示平均线
+  const showAverage = canShowMovingAverage(points)
   const movingAverage = showAverage
     ? points.map((_, index) => {
         if (index < 2) return null

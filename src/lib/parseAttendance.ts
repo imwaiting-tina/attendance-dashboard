@@ -68,6 +68,7 @@ interface SummaryColumnMap {
   missingPunch: number
   proof: number
   abnormalDays: number
+  remark: number
   overtimeHours: number
   annualLeave: number
   compLeave: number
@@ -80,6 +81,14 @@ interface SummaryColumnMap {
 /** 从汇总表头解析列位置；假期列只取「加班」之后的第一次出现 */
 function buildSummaryColumns(headers: string[]): SummaryColumnMap {
   const overtime = indexOfAfter(headers, '加班(小时)', 0)
+  const abnormalDays = indexOfAfter(headers, '考勤异常(天)', 0)
+  // 用户口径：考勤异常右侧一列就是备注，用于补充说明异常原因
+  const remark =
+    abnormalDays < 0
+      ? -1
+      : headers[abnormalDays + 1] === '备注'
+        ? abnormalDays + 1
+        : indexOfAfter(headers, '备注', abnormalDays + 1)
   return {
     name: indexOfAfter(headers, '员工姓名', 0),
     department: indexOfAfter(headers, '部门', 0),
@@ -87,7 +96,8 @@ function buildSummaryColumns(headers: string[]): SummaryColumnMap {
     severeLate: indexOfAfter(headers, '严重迟到', 0),
     missingPunch: indexOfAfter(headers, '缺卡', 0),
     proof: headers.findIndex((header) => header.startsWith('上级邮件')),
-    abnormalDays: indexOfAfter(headers, '考勤异常(天)', 0),
+    abnormalDays,
+    remark,
     overtimeHours: overtime,
     annualLeave: indexOfAfter(headers, '年假(天)', overtime + 1),
     compLeave: indexOfAfter(headers, '调休(天)', overtime + 1),
@@ -326,6 +336,9 @@ export function parseAttendanceWorkbook(
       missingDetailNames.push(rawName)
     }
 
+    // 保留原始 Y/N 状态：Y 表示缺卡已全部补上（按人计 1 次），N 表示存在考勤异常
+    const proofStatus = columns.proof >= 0 ? cellText(row[columns.proof]).toUpperCase() : ''
+
     records.push({
       month: month ?? '',
       employee_key: employeeKey,
@@ -335,8 +348,10 @@ export function parseAttendanceWorkbook(
       late_count: toNumber(row[columns.late]),
       severe_late_count: toNumber(row[columns.severeLate]),
       missing_punch_count: toNumber(row[columns.missingPunch]),
-      proof_y: columns.proof >= 0 && cellText(row[columns.proof]).toUpperCase().startsWith('Y'),
+      proof_y: proofStatus.startsWith('Y'),
+      proof_status: proofStatus,
       abnormal_days: toNumber(row[columns.abnormalDays]),
+      abnormal_remark: columns.remark >= 0 ? cellText(row[columns.remark]) : '',
       overtime_hours: toNumber(row[columns.overtimeHours]),
       annual_leave: toNumber(row[columns.annualLeave]),
       comp_leave: toNumber(row[columns.compLeave]),
@@ -376,6 +391,7 @@ export function parseAttendanceWorkbook(
     totals.late += record.late_count
     totals.severeLate += record.severe_late_count
     totals.missingPunch += record.missing_punch_count
+    // 补卡人数按员工计：只要当月为 Y，无论缺卡几次，每人只计 1 人
     totals.proofCount += record.proof_y ? 1 : 0
     totals.abnormalDays += record.abnormal_days
     totals.overtimeHours += record.overtime_hours
