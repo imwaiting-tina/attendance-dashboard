@@ -24,12 +24,24 @@ export function EmployeeTable({ employees, onSelect }: EmployeeTableProps) {
           <thead>
             <tr>
               <th scope="col">员工</th>
-              <th scope="col">记录</th>
-              <th scope="col">迟到</th>
-              <th scope="col">严重迟到</th>
-              <th scope="col">缺卡</th>
-              <th scope="col">加班(小时)</th>
-              <th scope="col">出勤率</th>
+              <th scope="col" className="num">
+                记录
+              </th>
+              <th scope="col" className="num">
+                迟到
+              </th>
+              <th scope="col" className="num">
+                严重迟到
+              </th>
+              <th scope="col" className="num">
+                缺卡
+              </th>
+              <th scope="col" className="num">
+                加班(小时)
+              </th>
+              <th scope="col" className="num">
+                出勤率
+              </th>
             </tr>
           </thead>
           <tbody>

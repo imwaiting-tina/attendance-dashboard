@@ -99,9 +99,13 @@ export function AttendanceExceptions({ records, onSelect }: AttendanceExceptions
               <th scope="col">月份</th>
               <th scope="col">员工</th>
               <th scope="col">部门</th>
-              <th scope="col">缺卡</th>
+              <th scope="col" className="num">
+                缺卡
+              </th>
               <th scope="col">补卡证明</th>
-              <th scope="col">考勤异常(天)</th>
+              <th scope="col" className="num">
+                考勤异常(天)
+              </th>
               <th scope="col">备注</th>
             </tr>
           </thead>

@@ -100,21 +100,51 @@ export function MonthlyTable({ points, periods, scopeLabel }: MonthlyTableProps)
               <th scope="col" className="sticky-col">
                 月份
               </th>
-              <th scope="col">迟到</th>
-              <th scope="col">严重迟到</th>
-              <th scope="col">缺卡</th>
-              <th scope="col">补卡人数</th>
-              <th scope="col">考勤异常(天)</th>
-              <th scope="col">加班(小时)</th>
-              <th scope="col">年假(天)</th>
-              <th scope="col">调休(天)</th>
-              <th scope="col">病假(天)</th>
-              <th scope="col">事假(天)</th>
-              <th scope="col">丧假(天)</th>
-              <th scope="col">育儿假(天)</th>
-              <th scope="col">应出勤(天)</th>
-              <th scope="col">实际出勤(天)</th>
-              <th scope="col">出勤率</th>
+              <th scope="col" className="num">
+                迟到
+              </th>
+              <th scope="col" className="num">
+                严重迟到
+              </th>
+              <th scope="col" className="num">
+                缺卡
+              </th>
+              <th scope="col" className="num">
+                补卡人数
+              </th>
+              <th scope="col" className="num">
+                考勤异常(天)
+              </th>
+              <th scope="col" className="num">
+                加班(小时)
+              </th>
+              <th scope="col" className="num">
+                年假(天)
+              </th>
+              <th scope="col" className="num">
+                调休(天)
+              </th>
+              <th scope="col" className="num">
+                病假(天)
+              </th>
+              <th scope="col" className="num">
+                事假(天)
+              </th>
+              <th scope="col" className="num">
+                丧假(天)
+              </th>
+              <th scope="col" className="num">
+                育儿假(天)
+              </th>
+              <th scope="col" className="num">
+                应出勤(天)
+              </th>
+              <th scope="col" className="num">
+                实际出勤(天)
+              </th>
+              <th scope="col" className="num">
+                出勤率
+              </th>
             </tr>
           </thead>
           <tbody>
