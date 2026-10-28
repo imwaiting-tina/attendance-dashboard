@@ -2,6 +2,8 @@
 
 把每月考勤 Excel 导入 Supabase，在浏览器里生成跨月考勤趋势。前端部署在 GitHub Pages，数据只对管理员账号开放。
 
+线上地址：<https://imwaiting-tina.github.io/attendance-dashboard/>
+
 ## 功能
 
 - **月度导入**：拖入一个或多个月度考勤表，浏览器本地解析后原子写入 Supabase；同一月份重复导入会覆盖旧数据。
@@ -100,13 +102,13 @@ npm run seed -- "/path/to/考勤汇总文件夹"      # 再逐月原子入库
 - `validate` 会把员工行合计与每月「汇总」第 1 行合计逐项比对；7、8 月缺卡列的已知公式漏行会标为「已知公式漏行」。
 - `seed` 优先使用 service_role；没有 service_role 时会用 `VITE_SUPABASE_ANON_KEY` + 管理员账号登录后调用 RPC。
 
-## 导入新月份（如 10 月）
+## 导入新月份（10 月、11 月、12 月……）
 
 1. 用管理员账号登录线上仪表盘。
-2. 点击「导入考勤表」，拖入 10 月 xlsx。
+2. 点击「导入考勤表」，拖入当月 xlsx；也可以一次选中多个月份文件批量导入。
 3. 检查预览中的月份、员工数、警告；文件名无法识别时可手动选择 `YYYY-MM`。
 4. 确认导入。若该月已存在会标注「将覆盖」，导入为原子操作，不会留下半套数据。
-5. 仪表盘自动刷新，趋势图出现第 10 个点。
+5. 仪表盘自动刷新，趋势图自动增加对应月份，不需要改代码。
 
 ## 部署到 GitHub Pages
 
@@ -139,6 +141,7 @@ npm run seed -- "/path/to/考勤汇总文件夹"      # 再逐月原子入库
 - 业务表开启 RLS，只有 `app_admins` 中的用户可以 select；写入仅通过 RPC，RPC 内再次校验管理员。
 - service_role 只用于本机一次性初始化与 seed，绝不进入前端或 Actions secrets。
 - Supabase 免费项目建议只保留一个管理员账号，关闭注册。
+- 仓库内 `supabase/config.toml` 已与线上认证配置对齐：`[auth] enable_signup = false`（关闭自助注册）、`[auth.email] enable_signup = true`（保持邮箱登录方式可用）、`site_url` 指向 GitHub Pages。执行 `npx supabase config push` 前请确认这些值，避免把线上站点改回 localhost 或重新开放注册。
 
 ## 已知数据问题
 
