@@ -1,69 +1,71 @@
 :root {
   color-scheme: light;
-  --page: #f1efe9;
-  --surface: #faf9f6;
-  --surface-2: #ece9e2;
-  --surface-3: #ded9ce;
-  --text-1: #2b2e2f;
-  --text-2: #5c605f;
-  --muted: #868a87;
-  --grid: #dcd7cc;
-  --axis: #c4beb2;
-  --border: rgba(43, 46, 47, 0.1);
-  --border-strong: rgba(43, 46, 47, 0.18);
-  --accent: #386b9c;
-  --accent-hover: #2f5e8a;
+  /* 商务风浅色：冷白卡片 + 蓝灰底色，避免暖色带来的沉闷感 */
+  --page: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f5f7fa;
+  --surface-3: #e8edf3;
+  --text-1: #17212b;
+  --text-2: #4d5b6b;
+  --muted: #7d8a99;
+  --grid: #e4e9f0;
+  --axis: #cbd4df;
+  --border: rgba(23, 33, 43, 0.1);
+  --border-strong: rgba(23, 33, 43, 0.18);
+  --accent: #2a6398;
+  --accent-hover: #22547f;
   --accent-ink: #ffffff;
-  --accent-soft: #e9eef1;
-  --accent-border: rgba(56, 107, 156, 0.28);
-  --focus-ring: rgba(56, 107, 156, 0.2);
-  --success: #3e6b4a;
-  --success-soft: #e8efe7;
-  --success-border: rgba(62, 107, 74, 0.2);
-  --warning: #7a5a2a;
-  --warning-soft: #f1eadf;
-  --warning-border: rgba(122, 90, 42, 0.22);
-  --critical: #8a5a5a;
-  --critical-soft: #f2e7e4;
-  --critical-border: rgba(138, 90, 90, 0.22);
-  --topbar-bg: rgba(241, 239, 233, 0.86);
-  --shadow-card: 0 1px 2px rgba(43, 46, 47, 0.03), 0 8px 24px rgba(43, 46, 47, 0.04);
-  --shadow-modal: 0 24px 80px rgba(43, 46, 47, 0.26);
-  --radius-card: 14px;
+  --accent-soft: #eaf1f7;
+  --accent-border: rgba(42, 99, 152, 0.26);
+  --focus-ring: rgba(42, 99, 152, 0.22);
+  --success: #2f7d4a;
+  --success-soft: #e9f4ed;
+  --success-border: rgba(47, 125, 74, 0.22);
+  --warning: #96661e;
+  --warning-soft: #fbf3e6;
+  --warning-border: rgba(150, 102, 30, 0.22);
+  --critical: #b04646;
+  --critical-soft: #fbebeb;
+  --critical-border: rgba(176, 70, 70, 0.22);
+  --topbar-bg: rgba(255, 255, 255, 0.9);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.05);
+  --shadow-modal: 0 24px 80px rgba(15, 23, 42, 0.24);
+  --radius-card: 12px;
   --font-sans: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #1b1d1e;
-  --surface: #242728;
-  --surface-2: #2c3031;
-  --surface-3: #383c3d;
-  --text-1: #f2f0ea;
-  --text-2: #c8c5ba;
-  --muted: #9a988f;
-  --grid: #363a3b;
-  --axis: #474c4d;
-  --border: rgba(242, 240, 234, 0.1);
-  --border-strong: rgba(242, 240, 234, 0.18);
-  --accent: #9bb0b8;
-  --accent-hover: #afc2c8;
-  --accent-ink: #1b1d1e;
-  --accent-soft: rgba(155, 176, 184, 0.16);
-  --accent-border: rgba(155, 176, 184, 0.34);
-  --focus-ring: rgba(155, 176, 184, 0.3);
-  --success: #9db79b;
-  --success-soft: rgba(157, 183, 155, 0.14);
-  --success-border: rgba(157, 183, 155, 0.28);
-  --warning: #d3b57d;
-  --warning-soft: rgba(211, 181, 125, 0.14);
-  --warning-border: rgba(211, 181, 125, 0.28);
-  --critical: #d3968d;
-  --critical-soft: rgba(211, 150, 141, 0.14);
-  --critical-border: rgba(211, 150, 141, 0.3);
-  --topbar-bg: rgba(27, 29, 30, 0.86);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.55);
+  /* 深色不再用近黑底，改为蓝灰石板色，整体更轻、更商务 */
+  --page: #232a33;
+  --surface: #2b323c;
+  --surface-2: #333b46;
+  --surface-3: #3f4854;
+  --text-1: #eef2f7;
+  --text-2: #c2cbd7;
+  --muted: #94a1b2;
+  --grid: #3b4552;
+  --axis: #4d5968;
+  --border: rgba(238, 242, 247, 0.1);
+  --border-strong: rgba(238, 242, 247, 0.18);
+  --accent: #8ab6e0;
+  --accent-hover: #a4c7e9;
+  --accent-ink: #1b222b;
+  --accent-soft: rgba(138, 182, 224, 0.16);
+  --accent-border: rgba(138, 182, 224, 0.34);
+  --focus-ring: rgba(138, 182, 224, 0.3);
+  --success: #86c39a;
+  --success-soft: rgba(134, 195, 154, 0.14);
+  --success-border: rgba(134, 195, 154, 0.28);
+  --warning: #d7b271;
+  --warning-soft: rgba(215, 178, 113, 0.14);
+  --warning-border: rgba(215, 178, 113, 0.28);
+  --critical: #e09494;
+  --critical-soft: rgba(224, 148, 148, 0.14);
+  --critical-border: rgba(224, 148, 148, 0.3);
+  --topbar-bg: rgba(43, 50, 60, 0.9);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.5);
 }
 
 *,
@@ -84,9 +86,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-1);
-  background:
-    radial-gradient(900px 420px at 8% -8%, var(--accent-soft), transparent 65%),
-    var(--page);
+  background: var(--page);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
