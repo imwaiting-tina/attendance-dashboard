@@ -12,8 +12,10 @@ import {
 import {
   aggregateByMonth,
   countEmployees,
+  departmentNameOf,
   filterByEmployeeSearch,
   listDepartments,
+  summarizeDepartments,
   summarizeEmployees,
 } from '../lib/aggregate'
 import {
@@ -33,6 +35,7 @@ import { FilterBar, type EmployeeOption } from './FilterBar'
 import { Header } from './Header'
 import { KpiCard, type DeltaDirection, type DeltaTone } from './KpiCard'
 import { MonthlyTable } from './MonthlyTable'
+import { DepartmentComparison } from './charts/DepartmentComparison'
 import {
   AttendanceRateCard,
   LateTrendCard,
@@ -148,6 +151,10 @@ export function Dashboard({
     [records, selectedMonthSet],
   )
   const departments = useMemo(() => listDepartments(monthRecords), [monthRecords])
+  const departmentSummaries = useMemo(
+    () => summarizeDepartments(monthRecords),
+    [monthRecords],
+  )
   const allEmployees = useMemo(() => summarizeEmployees(monthRecords), [monthRecords])
   const employeeByKey = useMemo(
     () => new Map(allEmployees.map((employee) => [employee.employee_key, employee])),
@@ -173,7 +180,7 @@ export function Dashboard({
     const departmentRecords =
       department === 'all'
         ? records
-        : records.filter((record) => record.department_group === department)
+        : records.filter((record) => departmentNameOf(record) === department)
     return filterByEmployeeSearch(departmentRecords, search)
   }, [records, department, search, selectedKey])
 
@@ -223,6 +230,12 @@ export function Dashboard({
         : points.length === 2
           ? `${selectedMonthNames.join('、')} 对比`
           : `${points.length} 个月对比`
+  const departmentScopeLabel =
+    monthMode === 'all'
+      ? '全部月份累计'
+      : monthMode === 'single'
+        ? `${monthLabel} · 当月`
+        : `所选 ${points.length} 个月累计`
   const scopeSummary = `${scopeLabel} · ${monthScopeLabel} · ${scopeRecords.length} 条记录`
   // 月度表/CSV 文件名带上所选月份，避免不同月份导出同名文件
   const tableScopeLabel =
@@ -303,6 +316,20 @@ export function Dashboard({
   const exitPersonalView = () => {
     setSelectedKey(null)
     setSearch('')
+  }
+
+  // 点击部门对比柱条：筛选该部门并滚动到下方人员明细
+  const selectDepartmentFromChart = (name: string) => {
+    if (!departments.includes(name)) return
+    setSelectedKey(null)
+    setSearch('')
+    setDepartment(name)
+    window.setTimeout(() => {
+      document.getElementById('employees')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+      })
+    }, 0)
   }
 
   const resetFilters = () => {
@@ -563,6 +590,15 @@ export function Dashboard({
                       <AttendanceRateCard points={points} theme={theme} />
                     </div>
                   </section>
+
+                  {selectedEmployee ? null : (
+                    <DepartmentComparison
+                      departments={departmentSummaries}
+                      theme={theme}
+                      scopeLabel={departmentScopeLabel}
+                      onSelectDepartment={selectDepartmentFromChart}
+                    />
+                  )}
 
                   <MonthlyTable points={points} periods={periods} scopeLabel={tableScopeLabel} />
 

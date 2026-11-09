@@ -23,6 +23,18 @@ export interface EmployeeSummary {
   rate: number | null
 }
 
+export interface DepartmentSummary extends MonthlyTotals {
+  department: string
+  employeeCount: number
+  /** 迟到 + 严重迟到，与 KPI 口径一致 */
+  lateTotal: number
+  /** 六类假期合计 */
+  leaveTotal: number
+}
+
+export type DepartmentSortMetric = 'lateTotal' | 'missingPunch' | 'leaveTotal'
+export type SortOrder = 'asc' | 'desc'
+
 export function emptyTotals(): MonthlyTotals {
   return {
     late: 0,
@@ -143,6 +155,63 @@ export function summarizeEmployees(records: AttendanceRecord[]): EmployeeSummary
   })
 }
 
+/** 部门为空时统一归入「未分部门」，保证部门筛选与对比图使用同一口径 */
+export const UNASSIGNED_DEPARTMENT = '未分部门'
+
+export function departmentNameOf(record: Pick<AttendanceRecord, 'department_group'>): string {
+  const name = record.department_group?.trim()
+  return name || UNASSIGNED_DEPARTMENT
+}
+
+/** 按部门汇总当前范围，用于部门横向对比 */
+export function summarizeDepartments(records: AttendanceRecord[]): DepartmentSummary[] {
+  const byDepartment = new Map<
+    string,
+    { totals: MonthlyTotals; employees: Set<string> }
+  >()
+
+  for (const record of records) {
+    const department = departmentNameOf(record)
+    let group = byDepartment.get(department)
+    if (!group) {
+      group = { totals: emptyTotals(), employees: new Set() }
+      byDepartment.set(department, group)
+    }
+    addRecordToTotals(group.totals, record)
+    group.employees.add(record.employee_key)
+  }
+
+  return [...byDepartment.entries()]
+    .map(([department, group]) => ({
+      department,
+      employeeCount: group.employees.size,
+      ...group.totals,
+      lateTotal: group.totals.late + group.totals.severeLate,
+      leaveTotal:
+        group.totals.annualLeave +
+        group.totals.compLeave +
+        group.totals.sickLeave +
+        group.totals.personalLeave +
+        group.totals.bereavementLeave +
+        group.totals.parentalLeave,
+    }))
+    .sort((a, b) => a.department.localeCompare(b.department, 'zh-Hans-CN'))
+}
+
+/** 按指定指标排序部门；数值相同时保持部门名称正序，避免每次重排跳动 */
+export function sortDepartmentsByMetric(
+  departments: DepartmentSummary[],
+  metric: DepartmentSortMetric,
+  order: SortOrder,
+): DepartmentSummary[] {
+  const direction = order === 'desc' ? -1 : 1
+  return [...departments].sort((a, b) => {
+    const difference = a[metric] - b[metric]
+    if (difference !== 0) return difference * direction
+    return a.department.localeCompare(b.department, 'zh-Hans-CN')
+  })
+}
+
 /** 只保留员工姓名/归一化键匹配关键词的记录，支持拼音和首字母 */
 export function filterByEmployeeSearch(records: AttendanceRecord[], keyword: string): AttendanceRecord[] {
   if (!keyword.trim()) return records
@@ -157,9 +226,9 @@ export function countEmployees(records: AttendanceRecord[]): number {
   return new Set(records.map((record) => record.employee_key)).size
 }
 
-/** 部门列表按中文排序 */
+/** 部门列表按中文排序；空部门归入「未分部门」 */
 export function listDepartments(records: AttendanceRecord[]): string[] {
-  return [...new Set(records.map((record) => record.department_group).filter(Boolean))].sort((a, b) =>
+  return [...new Set(records.map(departmentNameOf))].sort((a, b) =>
     a.localeCompare(b, 'zh-Hans-CN'),
   )
 }

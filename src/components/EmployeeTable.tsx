@@ -9,7 +9,7 @@ interface EmployeeTableProps {
 
 export function EmployeeTable({ employees, onSelect }: EmployeeTableProps) {
   return (
-    <section className="card table-card">
+    <section className="card table-card" id="employees">
       <header className="card-head table-head">
         <div className="card-heading">
           <h2>员工概览</h2>

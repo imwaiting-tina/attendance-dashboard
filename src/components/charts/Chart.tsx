@@ -3,7 +3,7 @@ import * as echarts from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { AxisPointerComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import type { EChartsCoreOption, EChartsType } from 'echarts/core'
+import type { ECElementEvent, EChartsCoreOption, EChartsType } from 'echarts/core'
 
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AxisPointerComponent, CanvasRenderer])
 
@@ -11,12 +11,19 @@ interface ChartProps {
   option: EChartsCoreOption
   height: number
   ariaLabel: string
+  /** 点击数据图元时回传分类名，目前用于部门对比图跳转人员明细 */
+  onClick?: (name: string) => void
 }
 
 /** 轻量 ECharts 容器：自适应尺寸，主题变化时整体替换配置 */
-export function Chart({ option, height, ariaLabel }: ChartProps) {
+export function Chart({ option, height, ariaLabel, onClick }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<EChartsType | null>(null)
+  const onClickRef = useRef(onClick)
+
+  useEffect(() => {
+    onClickRef.current = onClick
+  }, [onClick])
 
   useEffect(() => {
     const element = containerRef.current
@@ -27,11 +34,18 @@ export function Chart({ option, height, ariaLabel }: ChartProps) {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     chart.setOption({ ...option, animation: !reducedMotion }, { notMerge: true })
 
+    // 点击柱子时 params.name 是 y 轴分类，即部门名称
+    const handleClick = (params: ECElementEvent) => {
+      if (typeof params.name === 'string') onClickRef.current?.(params.name)
+    }
+    chart.on('click', handleClick)
+
     const resizeObserver = new ResizeObserver(() => chart.resize())
     resizeObserver.observe(element)
 
     return () => {
       resizeObserver.disconnect()
+      chart.off('click', handleClick)
       chart.dispose()
       chartRef.current = null
     }

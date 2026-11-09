@@ -831,6 +831,65 @@ select:disabled {
   width: 100%;
 }
 
+.department-section {
+  scroll-margin-top: 90px;
+}
+
+.department-chart-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.department-chart-card .chart-canvas {
+  cursor: pointer;
+}
+
+.sort-toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.sort-toggle-label {
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 27px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.sort-button:hover {
+  color: var(--text-1);
+}
+
+.sort-button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text-1);
+  box-shadow: var(--shadow-card);
+}
+
+.sort-button[aria-pressed='true'] svg {
+  color: var(--accent);
+}
+
 .chart-table-link {
   align-self: flex-end;
   margin-top: auto;
@@ -1054,6 +1113,10 @@ select:disabled {
   color: var(--text-2);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+}
+
+#employees {
+  scroll-margin-top: 90px;
 }
 
 .employee-table-scroll {

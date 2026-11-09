@@ -1,5 +1,12 @@
 import type { EChartsCoreOption } from 'echarts/core'
-import { canShowMovingAverage, type MonthlyPoint } from './aggregate'
+import {
+  canShowMovingAverage,
+  sortDepartmentsByMetric,
+  type DepartmentSortMetric,
+  type DepartmentSummary,
+  type MonthlyPoint,
+  type SortOrder,
+} from './aggregate'
 import { formatMonthAxis, formatMonthFull, formatNumber, formatRate } from './format'
 import { LEAVE_TYPES, type ChartTheme } from './theme'
 
@@ -161,6 +168,161 @@ function valueLabel(
       ? { textBorderColor: theme.surface, textBorderWidth: 3 }
       : {}),
   }
+}
+
+/** 部门横向对比通用配置：单指标、单一纵轴，柱条过短时仍保留部门标签 */
+function buildDepartmentBarOption(
+  departments: DepartmentSummary[],
+  metric: DepartmentSortMetric,
+  order: SortOrder,
+  theme: ChartTheme,
+  color: string,
+  seriesName: string,
+  tooltipFormatter: (item: DepartmentSummary) => string,
+): EChartsCoreOption {
+  const sorted = sortDepartmentsByMetric(departments, metric, order)
+
+  return {
+    animationDuration: 420,
+    grid: { left: 4, right: 44, top: 12, bottom: 4, containLabel: true },
+    tooltip: {
+      ...baseTooltip(theme, 'shadow'),
+      formatter: (params: unknown) => {
+        const list = (Array.isArray(params) ? params : [params]) as TooltipParam[]
+        const item = sorted[list[0]?.dataIndex ?? 0]
+        return item ? tooltipFormatter(item) : ''
+      },
+    },
+    xAxis: {
+      ...valueAxisCommon(theme),
+      minInterval: metric === 'leaveTotal' ? undefined : 1,
+      splitNumber: 4,
+    },
+    yAxis: {
+      type: 'category',
+      data: sorted.map((item) => item.department),
+      inverse: true,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        color: theme.textSecondary,
+        fontSize: 11,
+        fontFamily: FONT_FAMILY,
+        margin: 10,
+        width: 92,
+        overflow: 'truncate',
+      },
+      splitLine: { show: false },
+    },
+    series: [
+      {
+        name: seriesName,
+        type: 'bar',
+        data: sorted.map((item) => item[metric]),
+        barMaxWidth: 18,
+        barCategoryGap: '38%',
+        cursor: 'pointer',
+        itemStyle: { color, borderRadius: [0, 4, 4, 0] },
+        emphasis: { focus: 'series' },
+        label: {
+          ...valueLabel(
+            theme,
+            (params) => {
+              const item = sorted[params.dataIndex ?? 0]
+              if (!item) return ''
+              const value = item[metric]
+              return value > 0 ? formatNumber(value) : ''
+            },
+            { position: 'right', fontSize: 10.5 },
+          ),
+          distance: 5,
+        },
+      },
+    ],
+  }
+}
+
+/** 部门迟到对比：迟到 + 严重迟到合计 */
+export function buildDepartmentLateOption(
+  departments: DepartmentSummary[],
+  order: SortOrder,
+  theme: ChartTheme,
+): EChartsCoreOption {
+  return buildDepartmentBarOption(
+    departments,
+    'lateTotal',
+    order,
+    theme,
+    theme.series[0],
+    '迟到次数',
+    (item) =>
+      tooltipHtml(
+        theme,
+        `${item.department} · ${formatNumber(item.employeeCount)} 人`,
+        [
+          { label: '迟到', value: `${formatNumber(item.late)} 次` },
+          { label: '严重迟到', value: `${formatNumber(item.severeLate)} 次` },
+        ],
+        { label: '合计迟到', value: `${formatNumber(item.lateTotal)} 次` },
+      ),
+  )
+}
+
+/** 部门缺卡对比：以缺卡次数排序，tooltip 补充补卡人数与考勤异常 */
+export function buildDepartmentMissingOption(
+  departments: DepartmentSummary[],
+  order: SortOrder,
+  theme: ChartTheme,
+): EChartsCoreOption {
+  return buildDepartmentBarOption(
+    departments,
+    'missingPunch',
+    order,
+    theme,
+    theme.series[1],
+    '缺卡次数',
+    (item) =>
+      tooltipHtml(theme, `${item.department} · ${formatNumber(item.employeeCount)} 人`, [
+        { label: '缺卡次数', value: `${formatNumber(item.missingPunch)} 次` },
+        { label: '补卡人数', value: `${formatNumber(item.proofCount)} 人` },
+        { label: '考勤异常', value: `${formatNumber(item.abnormalDays)} 天` },
+      ]),
+  )
+}
+
+/** 部门请假对比：六类假期合计，tooltip 展示假期构成 */
+export function buildDepartmentLeaveOption(
+  departments: DepartmentSummary[],
+  order: SortOrder,
+  theme: ChartTheme,
+): EChartsCoreOption {
+  const activeTypes = LEAVE_TYPES.filter((leave) =>
+    departments.some((item) => item[leave.key] > 0),
+  )
+
+  return buildDepartmentBarOption(
+    departments,
+    'leaveTotal',
+    order,
+    theme,
+    theme.series[2],
+    '请假天数',
+    (item) => {
+      const rows = activeTypes
+        .filter((leave) => item[leave.key] > 0)
+        .map((leave) => ({
+          label: leave.label,
+          value: `${formatNumber(item[leave.key])} 天`,
+          color: theme.series[leave.colorIndex],
+        }))
+      return tooltipHtml(
+        theme,
+        `${item.department} · ${formatNumber(item.employeeCount)} 人`,
+        rows,
+        { label: '合计请假', value: `${formatNumber(item.leaveTotal)} 天` },
+      )
+    },
+  )
 }
 
 /** 迟到趋势：迟到 + 严重迟到堆叠柱，单一纵轴（次） */

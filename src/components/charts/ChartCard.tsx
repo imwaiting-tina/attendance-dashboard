@@ -5,11 +5,21 @@ interface ChartCardProps {
   subtitle: string
   unit?: string
   className?: string
+  tableHref?: string
+  tableLabel?: string
   children: ReactNode
 }
 
 /** 所有趋势图共用的卡片外壳与数据表入口 */
-export function ChartCard({ title, subtitle, unit, className = '', children }: ChartCardProps) {
+export function ChartCard({
+  title,
+  subtitle,
+  unit,
+  className = '',
+  tableHref = '#monthly-table',
+  tableLabel = '查看数据表',
+  children,
+}: ChartCardProps) {
   return (
     <section className={`card chart-card ${className}`.trim()}>
       <header className="card-head">
@@ -20,8 +30,8 @@ export function ChartCard({ title, subtitle, unit, className = '', children }: C
         {unit ? <span className="unit-badge">{unit}</span> : null}
       </header>
       <div className="chart-body">{children}</div>
-      <a className="chart-table-link" href="#monthly-table">
-        查看数据表
+      <a className="chart-table-link" href={tableHref}>
+        {tableLabel}
       </a>
     </section>
   )
