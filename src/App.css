@@ -1115,6 +1115,21 @@ select:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.condition-badge {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+#employees .table-head {
+  flex-wrap: wrap;
+}
+
+#employees .table-head-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 #employees {
   scroll-margin-top: 90px;
 }

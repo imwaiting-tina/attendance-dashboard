@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react'
-import type { DepartmentSummary, SortOrder } from '../../lib/aggregate'
+import type { DepartmentSummary, EmployeeCondition, SortOrder } from '../../lib/aggregate'
 import {
   buildDepartmentLateOption,
   buildDepartmentLeaveOption,
@@ -15,7 +15,8 @@ interface DepartmentComparisonProps {
   theme: ChartTheme
   /** 例如「2026年10月」或「所选 3 个月累计」 */
   scopeLabel: string
-  onSelectDepartment: (department: string) => void
+  /** 回传部门与对应考勤情况，用于人员明细筛选 */
+  onSelectDepartment: (department: string, condition: EmployeeCondition) => void
 }
 
 function chartHeight(departmentCount: number): number {
@@ -72,7 +73,7 @@ export function DepartmentComparison({
       <div className="section-head department-section-head">
         <div>
           <h2 id="department-comparison-title">部门对比</h2>
-          <p>{scopeLabel} · 全公司口径 · 点击柱条筛选并定位到该部门人员明细</p>
+          <p>{scopeLabel} · 全公司口径 · 点击柱条筛选该部门，人员明细只显示有该情况的员工并按数量降序</p>
         </div>
         <div className="sort-toggle" role="group" aria-label="部门对比排序方式">
           <span className="sort-toggle-label">排序</span>
@@ -100,7 +101,7 @@ export function DepartmentComparison({
       <div className="chart-grid department-chart-grid">
         <ChartCard
           title="部门迟到对比"
-          subtitle="迟到与严重迟到合计；仅显示有记录部门，点击柱条查看人员"
+          subtitle="迟到与严重迟到合计；仅显示有记录部门，点击柱条查看迟到人员"
           unit="次"
           className="department-chart-card"
           tableHref="#employees"
@@ -113,14 +114,14 @@ export function DepartmentComparison({
               option={lateOption}
               height={height}
               ariaLabel="部门迟到对比图，横向展示各部门迟到与严重迟到合计"
-              onClick={onSelectDepartment}
+              onClick={(name) => onSelectDepartment(name, 'late')}
             />
           )}
         </ChartCard>
 
         <ChartCard
           title="部门缺卡对比"
-          subtitle="按缺卡次数排序；仅显示有记录部门，点击柱条查看人员"
+          subtitle="按缺卡次数排序；仅显示有记录部门，点击柱条查看缺卡人员"
           unit="次"
           className="department-chart-card"
           tableHref="#employees"
@@ -133,14 +134,14 @@ export function DepartmentComparison({
               option={missingOption}
               height={height}
               ariaLabel="部门缺卡对比图，横向展示各部门缺卡次数"
-              onClick={onSelectDepartment}
+              onClick={(name) => onSelectDepartment(name, 'missing')}
             />
           )}
         </ChartCard>
 
         <ChartCard
           title="部门请假对比"
-          subtitle="六类请假合计；仅显示有记录部门，点击柱条查看人员"
+          subtitle="六类请假合计；仅显示有记录部门，点击柱条查看请假人员"
           unit="天"
           className="department-chart-card"
           tableHref="#employees"
@@ -153,7 +154,7 @@ export function DepartmentComparison({
               option={leaveOption}
               height={height}
               ariaLabel="部门请假对比图，横向展示各部门请假合计天数"
-              onClick={onSelectDepartment}
+              onClick={(name) => onSelectDepartment(name, 'leave')}
             />
           )}
         </ChartCard>

@@ -13,10 +13,12 @@ import {
   aggregateByMonth,
   countEmployees,
   departmentNameOf,
+  filterAndSortEmployeesByCondition,
   filterByEmployeeSearch,
   listDepartments,
   summarizeDepartments,
   summarizeEmployees,
+  type EmployeeCondition,
 } from '../lib/aggregate'
 import {
   formatCountDelta,
@@ -127,6 +129,8 @@ export function Dashboard({
   const [department, setDepartment] = useState('all')
   const [search, setSearch] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  // 从部门对比图进入时的人员筛选：只保留有该情况的员工
+  const [employeeCondition, setEmployeeCondition] = useState<EmployeeCondition | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -199,6 +203,11 @@ export function Dashboard({
   const points = useMemo(() => aggregateByMonth(scopeRecords), [scopeRecords])
   const comparisonPoints = useMemo(() => aggregateByMonth(baseScopeRecords), [baseScopeRecords])
   const employeeSummaries = useMemo(() => summarizeEmployees(scopeRecords), [scopeRecords])
+  // 部门对比图点击后，员工概览只保留有该考勤情况的人员并按数量降序
+  const visibleEmployees = useMemo(
+    () => filterAndSortEmployeesByCondition(employeeSummaries, employeeCondition),
+    [employeeSummaries, employeeCondition],
+  )
   const latest = points[points.length - 1]
   // 单月查看与上一自然月比较；多选对比与前一所选月份比较
   const previous = useMemo(() => {
@@ -247,7 +256,11 @@ export function Dashboard({
           ? `${scopeLabel} · ${selectedMonthNames.join('、')}`
           : `${scopeLabel} · 所选 ${points.length} 个月`
   const filterActive =
-    selectedMonths !== null || department !== 'all' || searchTerm.length > 0 || Boolean(selectedKey)
+    selectedMonths !== null ||
+    department !== 'all' ||
+    searchTerm.length > 0 ||
+    Boolean(selectedKey) ||
+    employeeCondition !== null
 
   const existingMonths = useMemo(() => new Set(periods.map((period) => period.month)), [periods])
 
@@ -318,12 +331,13 @@ export function Dashboard({
     setSearch('')
   }
 
-  // 点击部门对比柱条：筛选该部门并滚动到下方人员明细
-  const selectDepartmentFromChart = (name: string) => {
+  // 点击部门对比柱条：筛选该部门及对应考勤情况，并滚动到下方人员明细
+  const selectDepartmentFromChart = (name: string, condition: EmployeeCondition) => {
     if (!departments.includes(name)) return
     setSelectedKey(null)
     setSearch('')
     setDepartment(name)
+    setEmployeeCondition(condition)
     window.setTimeout(() => {
       document.getElementById('employees')?.scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
@@ -337,6 +351,7 @@ export function Dashboard({
     setDepartment('all')
     setSearch('')
     setSelectedKey(null)
+    setEmployeeCondition(null)
   }
 
   const handleSelectAllMonths = () => {
@@ -605,7 +620,12 @@ export function Dashboard({
                   <AttendanceExceptions records={scopeRecords} onSelect={selectEmployee} />
 
                   {selectedEmployee ? null : (
-                    <EmployeeTable employees={employeeSummaries} onSelect={selectEmployee} />
+                    <EmployeeTable
+                      employees={visibleEmployees}
+                      condition={employeeCondition}
+                      onClearCondition={() => setEmployeeCondition(null)}
+                      onSelect={selectEmployee}
+                    />
                   )}
                 </>
               )}

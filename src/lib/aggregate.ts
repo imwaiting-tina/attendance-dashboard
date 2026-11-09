@@ -17,11 +17,15 @@ export interface EmployeeSummary {
   late: number
   severeLate: number
   missingPunch: number
+  leaveTotal: number
   overtimeHours: number
   expectedDays: number
   attendedDays: number
   rate: number | null
 }
+
+/** 从部门对比图进入时，员工概览只保留存在该情况的员工 */
+export type EmployeeCondition = 'late' | 'missing' | 'leave'
 
 export interface DepartmentSummary extends MonthlyTotals {
   department: string
@@ -140,6 +144,13 @@ export function summarizeEmployees(records: AttendanceRecord[]): EmployeeSummary
       late: totals.late,
       severeLate: totals.severeLate,
       missingPunch: totals.missingPunch,
+      leaveTotal:
+        totals.annualLeave +
+        totals.compLeave +
+        totals.sickLeave +
+        totals.personalLeave +
+        totals.bereavementLeave +
+        totals.parentalLeave,
       overtimeHours: totals.overtimeHours,
       expectedDays: totals.expectedDays,
       attendedDays: totals.attendedDays,
@@ -153,6 +164,29 @@ export function summarizeEmployees(records: AttendanceRecord[]): EmployeeSummary
     if (riskB !== riskA) return riskB - riskA
     return a.employee_name.localeCompare(b.employee_name, 'zh-Hans-CN')
   })
+}
+
+function employeeConditionValue(employee: EmployeeSummary, condition: EmployeeCondition): number {
+  if (condition === 'late') return employee.late + employee.severeLate
+  if (condition === 'missing') return employee.missingPunch
+  return employee.leaveTotal
+}
+
+/** 只保留有指定考勤情况的员工，并按该情况的数量从多到少排序 */
+export function filterAndSortEmployeesByCondition(
+  employees: EmployeeSummary[],
+  condition: EmployeeCondition | null,
+): EmployeeSummary[] {
+  if (!condition) return employees
+
+  return employees
+    .filter((employee) => employeeConditionValue(employee, condition) > 0)
+    .sort((a, b) => {
+      const difference =
+        employeeConditionValue(b, condition) - employeeConditionValue(a, condition)
+      if (difference !== 0) return difference
+      return a.employee_name.localeCompare(b.employee_name, 'zh-Hans-CN')
+    })
 }
 
 /** 部门为空时统一归入「未分部门」，保证部门筛选与对比图使用同一口径 */
