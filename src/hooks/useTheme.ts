@@ -19,7 +19,7 @@ export function useTheme(): { mode: ThemeMode; toggleTheme: () => void } {
   useEffect(() => {
     document.documentElement.dataset.theme = mode
     document.documentElement.style.colorScheme = mode
-    const themeColor = mode === 'dark' ? '#0d0d0d' : '#f9f9f7'
+    const themeColor = mode === 'dark' ? '#1b1d1e' : '#f1efe9'
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor)
     try {
       window.localStorage.setItem(STORAGE_KEY, mode)
